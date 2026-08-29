@@ -19,6 +19,7 @@ services:
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
     tmpfs:

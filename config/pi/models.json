@@ -3,7 +3,12 @@
     "anthropic": {
       "baseUrl": "http://meridian:3456",
       "apiKey": "x",
-      "headers": { "x-meridian-agent": "pi" }
+      "headers": {
+        "x-meridian-agent": "pi"
+      }
+    },
+    "deepseek": {
+      "apiKey": "$DEEPSEEK_API_KEY"
     }
   }
 }
