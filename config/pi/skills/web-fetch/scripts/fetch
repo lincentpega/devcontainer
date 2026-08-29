@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# web-fetch: readable content from a URL.
+# Free path: uv run fetch.py (Readability + markdownify, auto-resolved deps).
+# Paid path: opt-in --paid -> Tavily web CLI. The agent decides when to pay.
+set -uo pipefail
+
+URL="${1:-}"
+if [ -z "$URL" ] || [ "${URL#http}" = "$URL" ]; then
+    echo "usage: $0 <http(s)://url> [--anchor ID | --list-anchors] [--paid] [--query '...']" >&2
+    exit 2
+fi
+shift
+
+if [ "${1:-}" = "--paid" ]; then
+    shift
+    exec "$(cd "$(dirname "$0")/../.." && pwd)/web-search/scripts/web" fetch "$URL" "$@"
+fi
+
+SCRIPT_DIR="$(dirname "$0")"
+if ! command -v uv >/dev/null 2>&1; then
+    echo "web-fetch: error: 'uv' not found (needed for fetch.py deps)." >&2
+    echo "uv is image-baked in the devbox devcontainer; rebuild to restore." >&2
+    exit 4
+fi
+
+# First run resolves+caches deps (PEP 723); later runs are fast.
+uv run --quiet "$SCRIPT_DIR/fetch.py" "$URL" "$@"
+exit $?

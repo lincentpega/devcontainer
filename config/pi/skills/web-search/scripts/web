@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""
+web — minimal web search + fetch tool.
+
+A thin wrapper around the Tavily CLI (tvly) exposing exactly two operations:
+
+    web search "query"                find pages / answer questions
+    web fetch  "https://..."          pull a page's readable content
+
+Exit codes:
+    0  success
+    2  bad usage / invalid input
+    3  not ready (tvly missing or not authenticated)
+    4  upstream API error
+
+Output is human-readable by default; pass --json for machine-readable JSON.
+"""
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import sys
+import textwrap
+
+EXIT_OK, EXIT_USAGE, EXIT_NOT_READY, EXIT_API = 0, 2, 3, 4
+
+TERM_WIDTH = int(os.environ.get("COLUMNS", 0) or 100)
+
+
+def die(code, msg):
+    print(f"web: error: {msg}", file=sys.stderr)
+    sys.exit(code)
+
+
+def run_tvly(args: list[str]) -> dict:
+    """Run tvly <args> --json, parse output, map exit codes."""
+    tvly = shutil.which("tvly")
+    if not tvly:
+        die(EXIT_NOT_READY,
+            "tvly CLI not found on PATH. Install: curl -fsSL https://cli.tavily.com/install.sh | bash")
+    cmd = [tvly, *args, "--json"]
+    proc = subprocess.run(cmd, capture_output=True, text=True)
+    if proc.returncode != 0:
+        # tvly uses the same exit-code scheme (2 usage, 3 auth, 4 api)
+        msg = (proc.stderr or proc.stdout or "").strip() or f"tvly exited {proc.returncode}"
+        die(EXIT_NOT_READY if proc.returncode == 3 else
+            EXIT_API if proc.returncode == 4 else EXIT_USAGE, msg)
+    try:
+        return json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        die(EXIT_API, "unexpected non-JSON response from tvly")
+
+
+def wrap(text: str, indent: str = "") -> str:
+    width = max(40, TERM_WIDTH - len(indent))
+    return textwrap.fill(text, width=width, initial_indent=indent,
+                         subsequent_indent=indent, replace_whitespace=False)
+
+
+# ---------------------------------------------------------------------------
+# search
+# ---------------------------------------------------------------------------
+
+def cmd_search(args) -> int:
+    query = args.query
+    if query == "-":
+        query = sys.stdin.read().strip()
+    if not query:
+        die(EXIT_USAGE, "empty query")
+
+    tv_args = ["search", query, "--max-results", str(args.num)]
+
+    if args.depth:
+        tv_args += ["--depth", args.depth]
+    if args.domain:
+        tv_args += ["--include-domains", ",".join(args.domain)]
+    if args.exclude_domain:
+        tv_args += ["--exclude-domains", ",".join(args.exclude_domain)]
+    if args.topic:
+        tv_args += ["--topic", args.topic]
+    if args.days:
+        tv_args += ["--time-range", _map_days(args.days)]
+    if args.answer:
+        tv_args += ["--include-answer", args.answer]
+    if args.country:
+        tv_args += ["--country", args.country]
+
+    data = run_tvly(tv_args)
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return EXIT_OK
+
+    results = data.get("results") or []
+    if args.answer and data.get("answer"):
+        print("ANSWER")
+        print("------")
+        print(wrap(data["answer"]))
+        print()
+
+    if not results:
+        print(f"No results for: {query}")
+        return EXIT_OK
+
+    for i, r in enumerate(results, 1):
+        print(f"{i}. {r.get('title') or r.get('url')}")
+        print(f"   {r['url']}")
+        content = (r.get("content") or "").strip()
+        if content:
+            print(wrap(content, indent="   "))
+        print()
+    print(f"{len(results)} results | {data.get('response_time', 0):.2f}s")
+    return EXIT_OK
+
+
+def _map_days(days: int) -> str:
+    if days <= 1:
+        return "day"
+    if days <= 7:
+        return "week"
+    if days <= 31:
+        return "month"
+    return "year"
+
+
+# ---------------------------------------------------------------------------
+# fetch
+# ---------------------------------------------------------------------------
+
+def cmd_fetch(args) -> int:
+    url = args.url
+    if not url or not url.startswith(("http://", "https://")):
+        die(EXIT_USAGE, "URL must start with http:// or https:// (quote it!)")
+
+    tv_args = ["extract", url, "--format", "markdown", "--extract-depth", "advanced"]
+    if args.query:
+        tv_args += ["--query", args.query, "--chunks-per-source", str(args.chunks)]
+
+    data = run_tvly(tv_args)
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return EXIT_OK
+
+    results = data.get("results") or []
+    if not results:
+        die(EXIT_API, f"failed to extract {url}")
+
+    for r in results:
+        print(f"# {r.get('title') or r['url']}")
+        print(f"Source: {r['url']}")
+        print()
+        content = (r.get("raw_content") or "").strip()
+        if args.max_chars:
+            content = content[: args.max_chars]
+            if len(r.get("raw_content") or "") > args.max_chars:
+                content += "\n\n[... truncated]"
+        if content:
+            print(content)
+        else:
+            print("(no readable content)")
+    return EXIT_OK
+
+
+# ---------------------------------------------------------------------------
+# status
+# ---------------------------------------------------------------------------
+
+def cmd_status(_args) -> int:
+    tvly = shutil.which("tvly")
+    if not tvly:
+        die(EXIT_NOT_READY, "tvly CLI not found. Install: curl -fsSL https://cli.tavily.com/install.sh | bash")
+    proc = subprocess.run([tvly, "--status"], capture_output=True, text=True)
+    sys.stdout.write(proc.stdout or proc.stderr)
+    return proc.returncode
+
+
+# ---------------------------------------------------------------------------
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="web",
+        description="Web search and fetch. Thin wrapper around the Tavily CLI.",
+        epilog=("Exit codes: 0 ok | 2 bad usage | 3 not ready | 4 API error. "
+                "Pass - as the query to read it from stdin."),
+    )
+    sub = p.add_subparsers(dest="command", required=True)
+
+    s = sub.add_parser("search", help="search the web")
+    s.add_argument("query", help='search query, or "-" to read from stdin')
+    s.add_argument("-n", "--num", type=int, default=5, help="max results (0-20, default 5)")
+    s.add_argument("--depth", choices=["ultra-fast", "fast", "basic", "advanced"], help="search depth")
+    s.add_argument("--domain", action="append", help="only include this domain (repeatable)")
+    s.add_argument("--exclude-domain", action="append", help="exclude this domain (repeatable)")
+    s.add_argument("--topic", choices=["general", "news", "finance"], help="search topic")
+    s.add_argument("--days", type=int, help="only results from the last N days")
+    s.add_argument("--answer", choices=["basic", "advanced"], const="basic", nargs="?",
+                   help="include an AI-generated answer")
+    s.add_argument("--country", help="boost results from this country")
+    s.add_argument("--json", action="store_true", help="output raw JSON")
+    s.set_defaults(func=cmd_search)
+
+    f = sub.add_parser("fetch", help="fetch a page's readable content")
+    f.add_argument("url", help="page URL (quote it!)")
+    f.add_argument("--query", help="focus extraction on this query")
+    f.add_argument("--chunks", type=int, default=1, help="chunks per source (1-5, with --query)")
+    f.add_argument("--max-chars", type=int, help="truncate printed content to N chars")
+    f.add_argument("--json", action="store_true", help="output raw JSON")
+    f.set_defaults(func=cmd_fetch)
+
+    st = sub.add_parser("status", help="check tvly install/auth status")
+    st.set_defaults(func=cmd_status)
+
+    return p
+
+
+def main() -> int:
+    args = build_parser().parse_args()
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
