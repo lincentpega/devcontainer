@@ -2,5 +2,4 @@
 .env
 **/auth.json
 *.tar.gz
-config/nvim/.claude/
 .DS_Store
