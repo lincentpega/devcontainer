@@ -46,9 +46,10 @@ RUN curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSIO
 # ---------------------------------------------------------------------------
 # Agent tools (npm globals)
 # ---------------------------------------------------------------------------
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent \
-                  @anthropic-ai/claude-code \
-                  @rynfar/meridian
+# pi installs with --ignore-scripts (its README requires it);
+# claude-code and meridian MUST run their postinstalls (native binary).
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
 
 # ---------------------------------------------------------------------------
 # User: dev (UID matches macOS host user — mounted workspace files stay owned
