@@ -67,6 +67,15 @@ RUN python3 -m venv /opt/tavily \
     && ln -s /opt/tavily/bin/tvly /usr/local/bin/tvly
 
 # ---------------------------------------------------------------------------
+# uv (Python package manager / PEP 723 script runner) — the web-fetch skill's
+# fetch.py runs via `uv run`. Image-baked so skills can rely on it at runtime
+# (rootfs is read-only; ~/.local would be lost on `down -v`).
+# ---------------------------------------------------------------------------
+RUN python3 -m venv /opt/uv \
+    && /opt/uv/bin/pip install --no-cache-dir uv \
+    && ln -s /opt/uv/bin/uv /usr/local/bin/uv
+
+# ---------------------------------------------------------------------------
 # glab (GitLab CLI) — deb package, pinned; TARGETARCH-aware (arm64/amd64)
 # ---------------------------------------------------------------------------
 ARG GLAB_VERSION=v1.115.0

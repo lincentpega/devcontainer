@@ -34,6 +34,10 @@ for v in TAVILY_API_KEY DEEPSEEK_API_KEY GITLAB_HOST GITLAB_TOKEN; do
         printf 'export %s=%q\n' "${v}" "${val}" >> "${ENV_FILE}"
     fi
 done
+
+# Fixed container editor — nvim is baked into the image at /usr/local/bin/nvim.
+# Written unconditionally (not secrets, not per-machine knobs).
+printf 'export EDITOR=nvim\nexport VISUAL=nvim\n' >> "${ENV_FILE}"
 chown "${USERNAME}:${USERNAME}" "${ENV_FILE}"
 grep -q '\.devbox-env' "/home/${USERNAME}/.bashrc" 2>/dev/null \
     || echo 'source "$HOME/.devbox-env" 2>/dev/null || true' >> "/home/${USERNAME}/.bashrc"

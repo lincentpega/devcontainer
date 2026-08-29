@@ -7,5 +7,7 @@ config/pi/credentials.json
 config/pi/mcp-cache.json
 config/pi/mcp-onboarding.json
 config/pi/npm/
+# Archived skills are byte-identical to git history (HEAD) — redundant local copy
+config/pi/skills-archive/
 .DS_Store
 config/meridian/profiles/
