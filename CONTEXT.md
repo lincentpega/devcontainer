@@ -73,6 +73,9 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 6. lazygit isn't packaged in Ubuntu 24.04 — install the official binary
 7. mount targets in the volume can end up root-owned after removing a mount —
    fix via `docker exec -u root`
+8. meridian runtime state (profiles/, transcripts) leaks into rw-mounted config
+   dirs — mount ONLY config files (sdk-features.json rw, plugins.json ro); state
+   stays in the container layer
 
 ## Auth in the box
 

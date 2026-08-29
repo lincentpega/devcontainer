@@ -42,7 +42,9 @@ services:
     build: ./meridian
     container_name: meridian
     volumes:
-      - ./config/meridian:/root/.config/meridian:rw     # repo-managed config
+      # only config files mounted — runtime state stays in the container layer
+      - ./config/meridian/sdk-features.json:/root/.config/meridian/sdk-features.json:rw
+      - ./config/meridian/plugins.json:/root/.config/meridian/plugins.json:ro
     environment:
       - MERIDIAN_HOST=0.0.0.0
       - MERIDIAN_PROFILES=[{"id":"default","oauthToken":"${CLAUDE_OAUTH_TOKEN}"}]
