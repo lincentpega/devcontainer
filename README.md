@@ -31,7 +31,7 @@ git push/pull (review loop)             Claude Code
                                         Meridian       127.0.0.1:3456
 mounts:                                 nvim + LazyVim + jdtls (via mason)
   ~/Development → /workspace (rw)       tmux
-  ~/.config/nvim (ro)
+  ~/.config/nvim (ro)                   config/tmux → ~/.tmux.conf (ro, in-box)
   ~/.ssh/authorized_keys (ro, pubkeys only)
 ```
 
@@ -65,6 +65,32 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
   (`docker compose up -d` starts both). Configure the OAuth token once
   (`claude setup-token` in the box → paste into `.env` → `compose up -d`).
   pi points at `http://meridian:3456` (compose network). Switch with `/model`.
+
+## Tmux + pi
+
+`config/tmux/tmux.conf` is the repo-managed tmux config (mounted read-only at
+`~/.tmux.conf` inside the box). It restores the two things tmux otherwise
+strips that pi needs:
+
+- **`set -g mouse on`** — forwards mouse events to apps: click-to-focus
+  panes, clicking moves the pi editor cursor, hyperlinks are clickable, and
+  in pi's **fullscreen TUI mode** the wheel/trackpad scrolls the transcript.
+- **`set -g extended-keys on`** — preserves modifier keys through tmux, so
+  `Shift+Enter` (newline in the prompt), `Ctrl+Enter`, and `Alt+Enter`
+  (queue follow-up) reach pi instead of collapsing into plain Enter. On
+  tmux 3.5+ it also sets `extended-keys-format csi-u`, the most reliable
+  format for pi; 3.2–3.4 fall back to xterm `modifyOtherKeys`, which pi
+  supports too.
+
+Scrolling in pi: `pi --tui-mode fullscreen` (or toggle in `/settings`) makes
+pi own the viewport — wheel scrolls the transcript, `pageUp`/`pageDown`/
+`home`/`end` page around, `ctrl+shift+f` searches it. In regular mode the
+wheel scrolls tmux's scrollback instead (copy mode: `prefix + [`).
+
+D1 runs tmux host-side: apply the same file to the host
+(`cp config/tmux/tmux.conf ~/.tmux.conf` — it's version-guarded and works on
+any tmux ≥ 3.2) and ssh into the box from a tmux pane. Restart tmux fully
+(`tmux kill-server && tmux`) after changing it.
 
 ## Pi + Meridian wiring (one-time)
 
@@ -120,7 +146,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 
 | # | Decision | Value |
 |---|---|---|
-| D1 | tmux | host-side (A) — ssh pane into the box |
+| D1 | tmux | host-side (A) — ssh pane into the box; config repo-managed at `config/tmux/tmux.conf` (mounted `~/.tmux.conf` in-box, same file usable host-side) |
 | D2 | git access | dedicated deploy keys |
 | D3 | username | `dev` (UID 501 = host user) |
 | D4 | JDK | 21 LTS |

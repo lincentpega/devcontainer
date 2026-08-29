@@ -27,6 +27,7 @@ mounts (all repo-relative, portable):
   ${WORKSPACE:-../}:/workspace:rw      (projects dir — repo's parent by default)
   ./config/nvim:/home/dev/.config/nvim:ro
   ./config/pi:/home/dev/.pi/agent:rw   (pi can self-improve; state gitignored)
+  ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro   (mouse + extended keys for pi)
   ./config/meridian:/root/.config/meridian:rw
   devbox-home:/home/dev                (state volume: auth, sessions, mason)
 ```
@@ -99,6 +100,6 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 
 ## Key decisions (defaults taken)
 
-tmux host-side · deploy keys (no ~/.ssh mount) · user `dev` (UID 501) ·
+tmux host-side (config repo-managed at config/tmux/, mounted ~/.tmux.conf) · deploy keys (no ~/.ssh mount) · user `dev` (UID 501) ·
 JDK 21 · Node 24 · meridian container-local → now own service · workspace =
 repo parent · configs repo-managed · secrets .env-only · gitleaks containerized
