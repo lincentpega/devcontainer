@@ -1,2 +1,6 @@
-# devbox repo
-# (nothing machine-specific lives in this repo — the recipe is the artifact)
+# devbox repo — machine-specific stuff never gets committed
+.env
+**/auth.json
+*.tar.gz
+config/nvim/.claude/
+.DS_Store

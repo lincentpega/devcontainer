@@ -8,13 +8,13 @@ services:
     ports:
       - "2222:22"                # ssh — the single entry point
     volumes:
-      - ~/Development:/workspace:rw                  # D12: the only rw host mount
-      # LazyVim config is managed INSIDE the container (~/.config/nvim in the
-      # home volume) — not mounted from the host.
-      # authorized_keys is only needed as an ssh bootstrap; the key is already
-      # in the home volume. Uncomment to re-sync new host keys:
-      # - ~/.ssh/authorized_keys:/auth/authorized_keys:ro
-      - devbox-home:/home/dev                        # state: nvim, mason, pi, meridian, claude
+      - ~/Development:/workspace:rw                  # D12: the only host data mount
+      - ~/Development/devcontainer/config/nvim:/home/dev/.config/nvim:ro     # LazyVim config (repo)
+      - ~/Development/devcontainer/config/pi/models.json:/home/dev/.pi/agent/models.json:ro  # pi config (repo)
+      - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
+    environment:
+      - MERIDIAN_PLACEHOLDER=${MERIDIAN_PLACEHOLDER:-}
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
     tmpfs:
       - /tmp
       - /run

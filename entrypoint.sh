@@ -21,5 +21,22 @@ if [ -f /auth/authorized_keys ]; then
     chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.ssh"
 fi
 
+# Surface container env vars into interactive ssh sessions.
+# sshd strips the environment for non-interactive logins by default, so the
+# values from compose `environment:` are written to a shell profile the user
+# sources. Never contains real secrets by itself — values come from .env at
+# compose time. The repo config files reference these as $ENV_VAR.
+ENV_FILE="/home/${USERNAME}/.devbox-env"
+: > "${ENV_FILE}"
+for v in MERIDIAN_PLACEHOLDER TAVILY_API_KEY; do
+    val="${!v:-}"
+    if [ -n "${val}" ]; then
+        printf 'export %s=%q\n' "${v}" "${val}" >> "${ENV_FILE}"
+    fi
+done
+chown "${USERNAME}:${USERNAME}" "${ENV_FILE}"
+grep -q '\.devbox-env' "/home/${USERNAME}/.bashrc" 2>/dev/null \
+    || echo 'source "$HOME/.devbox-env" 2>/dev/null || true' >> "/home/${USERNAME}/.bashrc"
+
 echo "[devbox] sshd on :22 — log in as ${USERNAME}@localhost -p 2222"
 exec /usr/sbin/sshd -D -e
