@@ -28,7 +28,7 @@ fi
 # compose time. The repo config files reference these as $ENV_VAR.
 ENV_FILE="/home/${USERNAME}/.devbox-env"
 : > "${ENV_FILE}"
-for v in MERIDIAN_PLACEHOLDER TAVILY_API_KEY; do
+for v in TAVILY_API_KEY; do
     val="${!v:-}"
     if [ -n "${val}" ]; then
         printf 'export %s=%q\n' "${v}" "${val}" >> "${ENV_FILE}"

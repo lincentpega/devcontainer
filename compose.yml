@@ -13,7 +13,6 @@ services:
       - ~/Development/devcontainer/config/pi/models.json:/home/dev/.pi/agent/models.json:ro  # pi config (repo)
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
-      - MERIDIAN_PLACEHOLDER=${MERIDIAN_PLACEHOLDER:-}
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
     tmpfs:
       - /tmp
