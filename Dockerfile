@@ -52,6 +52,16 @@ RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
 
 # ---------------------------------------------------------------------------
+# glab (GitLab CLI) — deb package, pinned; TARGETARCH-aware (arm64/amd64)
+# ---------------------------------------------------------------------------
+ARG GLAB_VERSION=v1.115.0
+ARG TARGETARCH
+RUN curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/${GLAB_VERSION}/downloads/glab_${GLAB_VERSION#v}_linux_${TARGETARCH}.deb" \
+        -o /tmp/glab.deb \
+    && apt-get update -qq && apt-get install -y --no-install-recommends /tmp/glab.deb \
+    && rm -rf /var/lib/apt/lists/* /tmp/glab.deb
+
+# ---------------------------------------------------------------------------
 # User: dev (UID matches macOS host user — mounted workspace files stay owned
 # by the same UID on both sides)
 # ---------------------------------------------------------------------------
