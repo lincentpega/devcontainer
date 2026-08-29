@@ -14,7 +14,7 @@ services:
       # All paths are relative to this repo (compose resolves them against the
       # compose file's directory) — portable across machines.
       - ${WORKSPACE:-../}:/workspace:rw              # projects dir (repo's parent by default; override in .env)
-      - ./config/nvim:/home/dev/.config/nvim:ro      # LazyVim config (repo)
+      - ./config/nvim:/home/dev/.config/nvim:rw      # LazyVim config (repo) — rw so :Lazy update writes lazy-lock.json into the repo
       - ./config/pi:/home/dev/.pi/agent:rw          # pi config dir (repo) — pi can self-improve
       - ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro  # tmux config (repo) — mouse + extended keys for pi
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude

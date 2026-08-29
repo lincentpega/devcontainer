@@ -117,6 +117,29 @@ D1 runs tmux host-side: apply the same file to the host
 any tmux ≥ 3.2) and ssh into the box from a tmux pane. Restart tmux fully
 (`tmux kill-server && tmux`) after changing it.
 
+### Clipboard exchange (tmux buffer <-> system clipboard)
+
+`set -g set-clipboard on` in the tmux config exchanges tmux's paste buffer
+with the host clipboard via **OSC 52**:
+
+- copy in tmux copy-mode (`prefix + [`, select, `y`) → tmux buffer **and** host
+  clipboard (`prefix + ]` pastes the tmux buffer, Cmd+V the host clipboard);
+- nvim yanks/paste use nvim's tmux clipboard provider (`load-buffer -w` /
+  `refresh-client -l`) — `config/nvim/lua/config/options.lua` sets
+  `clipboard = "unnamedplus"` (LazyVim disables it over SSH by default).
+
+Requirements:
+
+- a terminal with OSC 52 support (Ghostty/Kitty/WezTerm/iTerm2; macOS
+  Terminal.app does not support it). Ghostty allows clipboard *writes* by
+  default; to also let nvim *read* the host clipboard without a prompt, set
+  `clipboard-read = allow` in `~/.config/ghostty/config` on D1.
+- tmux must detect the terminal's `clipboard` feature (built-in for
+  `xterm*`, which covers Ghostty) and run with `set-clipboard` on/external.
+
+If tmux runs host-side on D1, the same tmux.conf applies there; nvim always
+runs inside the box (its OSC 52 crosses the SSH session either way).
+
 ## Pi + Meridian wiring (one-time)
 
 ```json
