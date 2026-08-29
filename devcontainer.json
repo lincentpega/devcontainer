@@ -1,0 +1,15 @@
+{
+  "name": "devbox",
+  "dockerComposeFile": "compose.yml",
+  "service": "devbox",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "dev",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

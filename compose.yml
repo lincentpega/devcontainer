@@ -1,0 +1,31 @@
+# devbox — runtime configuration
+# Security envelope: read-only rootfs, all caps dropped, seccomp default,
+# non-root work (you log in as `dev`), loopback-only services, no docker.sock.
+services:
+  devbox:
+    build: .
+    container_name: devbox
+    ports:
+      - "2222:22"                # ssh — the single entry point
+    volumes:
+      - ~/Development:/workspace:rw                  # D12: the only rw host mount
+      - ~/.config/nvim:/home/dev/.config/nvim:ro     # LazyVim config (live)
+      - ~/.ssh/authorized_keys:/auth/authorized_keys:ro  # public keys only
+      - devbox-home:/home/dev                        # state: nvim, mason, pi, meridian, claude
+    tmpfs:
+      - /tmp
+      - /run
+    read_only: true
+    security_opt:
+      - seccomp=default
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE         # sshd binds port 22 (<1024)
+    mem_limit: 4g
+    cpus: 2
+    restart: unless-stopped
+    entrypoint: ["/entrypoint.sh"]
+
+volumes:
+  devbox-home:
