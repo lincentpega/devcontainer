@@ -5,7 +5,11 @@
     "deepseek/deepseek-v4-flash",
     "anthropic/claude-opus-5"
   ],
+  "modelThinkingLevels": {
+    "deepseek/deepseek-v4-flash": "high"
+  },
   "packages": [
     "npm:pi-mcp-adapter"
-  ]
+  ],
+  "tuiMode": "fullscreen"
 }

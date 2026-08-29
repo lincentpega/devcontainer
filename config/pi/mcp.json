@@ -1,7 +1,8 @@
 {
   "mcpServers": {
     "fusion": {
-      "url": "http://127.0.0.1:27182/mcp"
+      "url": "http://127.0.0.1:27182/mcp",
+      "directTools": false
     }
   }
 }
