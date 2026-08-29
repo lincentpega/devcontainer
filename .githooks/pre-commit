@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
-# Pre-commit guard: refuse commits that contain token-shaped secrets.
+# Pre-commit guard: containerized gitleaks (no host installs).
+# Requires Docker/OrbStack running at commit time. GitHub push protection is
+# the server-side backstop for anything this misses.
+#
 # Installed via `git config core.hooksPath .githooks`.
 set -u
 
-# token patterns: tavily, anthropic, aws, github PAT, slack, stripe, etc.
-PATTERNS='tvly-[A-Za-z0-9_-]{10,}|sk-ant-[A-Za-z0-9_-]{10,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{20,}|gho_[A-Za-z0-9]{20,}|xox[baprs]-[A-Za-z0-9-]{10,}|sk_live_[A-Za-z0-9]{10,}'
-
-if git diff --cached --name-only -z | xargs -0 -I{} sh -c 'git show :"$1" 2>/dev/null' _ {} | grep -qiE "$PATTERNS"; then
-    echo "❌ pre-commit: staged content contains what looks like a secret token."
-    echo "   Remove it (or use env placeholders like \$ENV_VAR) before committing."
-    exit 1
+# 1. Containerized gitleaks — full rule set (~150 rules + generic entropy)
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    if ! docker run --rm -v "$PWD:/repo" -w /repo zricethezav/gitleaks:latest protect --staged --redact; then
+        echo "❌ pre-commit: gitleaks detected a possible secret in staged changes."
+        exit 1
+    fi
+else
+    echo "⚠️  pre-commit: Docker not available — gitleaks skipped (relies on GitHub push protection)."
 fi
 
-# also block known secret files outright
+# 2. Filename policy (gitleaks doesn't guard filenames)
 if git diff --cached --name-only | grep -qE '(^|/)\.env$|auth\.json$'; then
     echo "❌ pre-commit: refusing to commit .env or auth.json"
     exit 1
