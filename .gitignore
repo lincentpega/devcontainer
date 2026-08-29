@@ -1,4 +1,7 @@
 # devbox repo — machine-specific stuff never gets committed
 .env
 **/auth.json
+config/pi/sessions/
+config/pi/models-store.json
+config/pi/credentials.json
 .DS_Store

@@ -12,7 +12,7 @@ services:
       # compose file's directory) — portable across machines.
       - ${WORKSPACE:-../}:/workspace:rw              # projects dir (repo's parent by default; override in .env)
       - ./config/nvim:/home/dev/.config/nvim:ro      # LazyVim config (repo)
-      - ./config/pi/models.json:/home/dev/.pi/agent/models.json:ro  # pi config (repo)
+      - ./config/pi:/home/dev/.pi/agent:rw          # pi config dir (repo) — pi can self-improve
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
