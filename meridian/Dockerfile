@@ -3,6 +3,9 @@
 # postinstall matches the runtime libc (per upstream's own Dockerfile note).
 FROM node:24-slim
 
+# meridian's session lock requires /etc/machine-id (absent in slim images)
+RUN echo "5f2d0e4a91c34b7f8e2a6d1c4b9a03e7" > /etc/machine-id
+
 RUN npm install -g @rynfar/meridian
 
 # pi-scrub plugin, baked at a fixed path referenced by config/meridian/plugins.json
