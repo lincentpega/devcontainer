@@ -56,7 +56,8 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
 ## Daily use
 
 - **Agent**: `ssh -p 2222 dev@localhost` → `pi`
-- **Edit**: nvim with your LazyVim config (mounted). Language servers via
+- **Edit**: nvim with your LazyVim config (managed in-container; update via
+  tar pipe, e.g. `tar -C ~/.config -xzf -`). Language servers via
   `:MasonInstall jdtls` (or your stack).
 - **Review loop**: agent commits & pushes from the box → `git pull` on the host
   → review in any IDE → push back. Git history doubles as the agent audit log.
@@ -131,5 +132,5 @@ npm install @rynfar/meridian-plugin-pi-scrub
 ## Portability
 
 The recipe is the artifact: `docker compose up -d --build` reproduces the same
-environment on any machine with Docker (arm64). Dotfiles and state are mounted
-or volume-backed; nothing machine-specific lives in the image.
+environment on any machine with Docker (arm64). The image bakes the tools;
+your config + state live in the home volume. Ship configs in with a tar pipe.

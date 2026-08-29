@@ -9,8 +9,11 @@ services:
       - "2222:22"                # ssh — the single entry point
     volumes:
       - ~/Development:/workspace:rw                  # D12: the only rw host mount
-      - ~/.config/nvim:/home/dev/.config/nvim:ro     # LazyVim config (live)
-      - ~/.ssh/authorized_keys:/auth/authorized_keys:ro  # public keys only
+      # LazyVim config is managed INSIDE the container (~/.config/nvim in the
+      # home volume) — not mounted from the host.
+      # authorized_keys is only needed as an ssh bootstrap; the key is already
+      # in the home volume. Uncomment to re-sync new host keys:
+      # - ~/.ssh/authorized_keys:/auth/authorized_keys:ro
       - devbox-home:/home/dev                        # state: nvim, mason, pi, meridian, claude
     tmpfs:
       - /tmp
