@@ -74,6 +74,12 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 7. mount targets in the volume can end up root-owned after removing a mount —
    fix via `docker exec -u root`
 
+## Auth in the box
+
+- Meridian (Claude Max): `CLAUDE_OAUTH_TOKEN` in `.env` → `MERIDIAN_PROFILES`
+- deepseek (pi default provider): `config/pi/auth.json` (gitignored, mounted rw)
+  — deepseek key only, extracted from host `~/.pi/agent/auth.json`
+
 ## Open items
 
 - [ ] MERIDIAN_1M_CONTEXT_SUPPORT=0 — the only hard "no extra usage" switch
