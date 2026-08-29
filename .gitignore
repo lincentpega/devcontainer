@@ -5,3 +5,4 @@ config/pi/sessions/
 config/pi/models-store.json
 config/pi/credentials.json
 .DS_Store
+config/meridian/profiles/
