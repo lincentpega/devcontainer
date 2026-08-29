@@ -8,9 +8,11 @@ services:
     ports:
       - "2222:22"                # ssh — the single entry point
     volumes:
-      - ~/Development:/workspace:rw                  # D12: the only host data mount
-      - ~/Development/devcontainer/config/nvim:/home/dev/.config/nvim:ro     # LazyVim config (repo)
-      - ~/Development/devcontainer/config/pi/models.json:/home/dev/.pi/agent/models.json:ro  # pi config (repo)
+      # All paths are relative to this repo (compose resolves them against the
+      # compose file's directory) — portable across machines.
+      - ${WORKSPACE:-../}:/workspace:rw              # projects dir (repo's parent by default; override in .env)
+      - ./config/nvim:/home/dev/.config/nvim:ro      # LazyVim config (repo)
+      - ./config/pi/models.json:/home/dev/.pi/agent/models.json:ro  # pi config (repo)
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
