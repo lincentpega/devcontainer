@@ -12,6 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget git build-essential unzip jq python3 \
+        python3-pip python3-venv \
         openssh-server tmux ripgrep fd-find fzf gh \
         openjdk-21-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
@@ -50,6 +51,20 @@ RUN curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSIO
 # claude-code and meridian MUST run their postinstalls (native binary).
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
 RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
+
+# ---------------------------------------------------------------------------
+# Official Tavily CLI (tvly) — live web search for the agent
+# ---------------------------------------------------------------------------
+# Installed from the official PyPI package (tavily-cli -> tvly) into an
+# isolated venv under /opt (rootfs is read-only at runtime; the venv is
+# world-readable and the launcher lands in /usr/local/bin so the non-root
+# `dev` user gets tvly on PATH). No third-party installers — everything via
+# apt/pip. Auth state (~/.tavily) lives on the devbox-home volume and survives
+# rebuilds: authenticate once with `tvly login` (browser OAuth) or
+# `tvly login --api-key`.
+RUN python3 -m venv /opt/tavily \
+    && /opt/tavily/bin/pip install --no-cache-dir tavily-cli \
+    && ln -s /opt/tavily/bin/tvly /usr/local/bin/tvly
 
 # ---------------------------------------------------------------------------
 # glab (GitLab CLI) — deb package, pinned; TARGETARCH-aware (arm64/amd64)

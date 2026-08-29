@@ -12,6 +12,10 @@ docker compose up -d --build   # build + start devbox
 ssh -p 2222 dev@localhost      # land in the box
 ```
 
+Web search works out of the box: the image bakes the official Tavily CLI
+(`tvly`) and the Tavily Agent Skills live in the repo at `config/pi/skills/`
+(mounted `~/.pi/agent/skills/`). Authenticate once (see below).
+
 Destroy and rebuild for a fresh, identical environment (project files live on
 the host mount, so they survive):
 
@@ -65,6 +69,27 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
   (`docker compose up -d` starts both). Configure the OAuth token once
   (`claude setup-token` in the box → paste into `.env` → `compose up -d`).
   pi points at `http://meridian:3456` (compose network). Switch with `/model`.
+- **Web search (Tavily)**: the official CLI (`tvly` 0.1.6, PyPI `tavily-cli`,
+  pip-installed into an isolated venv at build time) plus 8 Tavily Agent
+  Skills (`tavily-search`, `tavily-extract`, `tavily-map`, `tavily-crawl`,
+  `tavily-research`, …). Skills are repo-managed at `config/pi/skills/`
+  (mounted `~/.pi/agent/skills/`, discovered by pi). Ask pi to "search the
+  web" — it routes via the `tavily-search` skill. Raw CLI: `tvly search "..."`.
+
+## Tavily auth (one-time, in the box)
+
+Credentials live in `~/.tavily/config.json` on the `devbox-home` volume, so
+they survive rebuilds — only authenticate once per box:
+
+```bash
+ssh -p 2222 dev@localhost
+tvly login          # browser OAuth (needs your host browser)
+# or, headless:  tvly login --api-key tvly-...
+tvly auth --json    # verify -> {"authenticated": true}
+```
+
+Optionally export `TAVILY_API_KEY` in the host `.env` for direct API use
+(compose already passes it through).
 
 ## Tmux + pi
 
@@ -141,6 +166,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 3. add pi provider override (above)
 4. git: add your deploy keys to `~/.ssh` inside the box
 5. `nvim` → LazyVim bootstrap → `:MasonInstall jdtls`
+6. `tvly login` (Tavily web search — see above)
 
 ## Decisions baked in
 
@@ -154,6 +180,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 | D6 | Meridian | container-local |
 | D7 | auth | interactive `claude login` |
 | D8 | pi default | deepseek; Meridian switchable |
+| D9 | web search | official Tavily CLI (apt python3-venv + pip, isolated venv, image-baked) + skills repo-managed in `config/pi/skills/` |
 | D12 | workspace | `~/Development` rw |
 
 ## Portability

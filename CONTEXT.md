@@ -10,7 +10,8 @@ A self-contained dev environment for AI coding agents, running in Docker
 workspace and repo configs.
 
 - **devbox** — the working environment: pi (agent), LazyVim + jdtls, Claude Code,
-  Node 24, JDK 21. Entry: `ssh -p 2222 dev@localhost` (alias `ssh devbox`).
+  Node 24, JDK 21, official Tavily CLI (`tvly`) + Agent Skills for web search.
+  Entry: `ssh -p 2222 dev@localhost` (alias `ssh devbox`).
 - **meridian** — separate service container: Claude Max bridge for pi
   (Agent SDK → Anthropic API on `127.0.0.1:3456` / `meridian:3456`).
 
@@ -58,6 +59,12 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 - devbox: Node 24.20, nvim 0.12.5, lazygit 0.64.1, pi 0.84.4, claude 2.1.251
 - meridian: healthy, logged in, claude-opus-5 served, pi-scrub loaded (1 active)
 - End-to-end pi → meridian → Claude Max: verified (minimal request returned)
+- Tavily: official CLI `tvly` 0.1.6 (PyPI tavily-cli, apt python3-venv + pip
+  into an isolated /opt/tavily venv) baked into the image; 8 Tavily Agent
+  Skills repo-managed at `config/pi/skills/` (mounted `~/.pi/agent/skills/`,
+  discovered by pi). CLI/install verified in the live box; auth NOT configured
+  yet — run `tvly login` in the box once (credentials persist in `~/.tavily`
+  on the home volume).
 - Security envelope: read-only rootfs, cap_drop ALL (+bootstrap set), no docker.sock,
   host loopback NOT reachable from containers (use `ssh -R` per-port if ever needed)
 
