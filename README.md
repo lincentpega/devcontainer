@@ -61,9 +61,10 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
   `:MasonInstall jdtls` (or your stack).
 - **Review loop**: agent commits & pushes from the box → `git pull` on the host
   → review in any IDE → push back. Git history doubles as the agent audit log.
-- **Claude Max via Meridian**: first run `claude login` inside the box, then
-  `meridian`. Point pi at it with the provider override in
-  `~/.pi/agent/models.json` (see the pi section below) or `/model`.
+- **Claude Max via Meridian**: meridian runs as its own compose service
+  (`docker compose up -d` starts both). Configure the OAuth token once
+  (`claude setup-token` in the box → paste into `.env` → `compose up -d`).
+  pi points at `http://meridian:3456` (compose network). Switch with `/model`.
 
 ## Pi + Meridian wiring (one-time)
 

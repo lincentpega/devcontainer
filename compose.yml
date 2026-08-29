@@ -5,6 +5,9 @@ services:
   devbox:
     build: .
     container_name: devbox
+    depends_on:
+      meridian:
+        condition: service_started
     ports:
       - "2222:22"                # ssh — the single entry point
     volumes:
@@ -34,6 +37,17 @@ services:
     cpus: 2
     restart: unless-stopped
     entrypoint: ["/entrypoint.sh"]
+
+  meridian:
+    build: ./meridian
+    container_name: meridian
+    volumes:
+      - ./config/meridian:/root/.config/meridian:rw     # repo-managed config
+    environment:
+      - MERIDIAN_HOST=0.0.0.0
+      - MERIDIAN_PROFILES=[{"id":"default","oauthToken":"${CLAUDE_OAUTH_TOKEN}"}]
+      - MERIDIAN_DEFAULT_PROFILE=default
+    restart: unless-stopped
 
 volumes:
   devbox-home:

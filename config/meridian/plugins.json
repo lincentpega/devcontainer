@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    {
+      "path": "/opt/meridian/plugins/node_modules/@rynfar/meridian-plugin-pi-scrub/dist/index.js",
+      "enabled": true
+    }
+  ]
+}

@@ -38,10 +38,5 @@ chown "${USERNAME}:${USERNAME}" "${ENV_FILE}"
 grep -q '\.devbox-env' "/home/${USERNAME}/.bashrc" 2>/dev/null \
     || echo 'source "$HOME/.devbox-env" 2>/dev/null || true' >> "/home/${USERNAME}/.bashrc"
 
-# Start Meridian (Claude Max bridge) as dev, container-local on 127.0.0.1:3456.
-# Always started; requests only succeed once `claude login` has been done
-# (creds persist in the home volume). Logs are ephemeral in /tmp (tmpfs).
-su "${USERNAME}" -c 'nohup meridian > /tmp/meridian.log 2>&1 &'
-
 echo "[devbox] sshd on :22 — log in as ${USERNAME}@localhost -p 2222"
 exec /usr/sbin/sshd -D -e
