@@ -1,4 +1,11 @@
 {
   "lastChangelogVersion": "0.84.4",
-  "theme": "dark"
+  "theme": "dark",
+  "enabledModels": [
+    "deepseek/deepseek-v4-flash",
+    "anthropic/claude-opus-5"
+  ],
+  "packages": [
+    "npm:pi-mcp-adapter"
+  ]
 }
