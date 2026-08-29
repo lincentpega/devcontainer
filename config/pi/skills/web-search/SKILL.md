@@ -1,8 +1,10 @@
 ---
 name: web-search
 description: >-
-  Search the web via the bundled `web` CLI. Use for docs, error messages, and
-  config examples.
+  Use when you need up-to-date web information: docs, error messages, config
+  examples, current events, or answers outside the model's knowledge. Load
+  for "search the web", "what's the latest", or verifying facts — even if
+  the user doesn't say "search".
 compatibility: Requires scripts/web (wraps tvly, image-baked; auth via TAVILY_API_KEY).
 ---
 

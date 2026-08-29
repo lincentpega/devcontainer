@@ -1,10 +1,10 @@
 ---
 name: plan
 description: >-
-  Plan-first workflow for implementation tasks. Use when the user requests
-  any non-trivial feature, fix, or refactor: explore, produce a concrete
-  plan, and wait for explicit approval before writing or editing any code.
-  Never implement anything unless the user explicitly says to.
+  Plan-first workflow for non-trivial or ambiguous tasks. Use when the user
+  requests any feature, fix, or refactor: explore, produce a concrete plan,
+  and wait for explicit approval before writing or editing any code. Never
+  implement anything unless the user explicitly says to.
 ---
 
 # Plan

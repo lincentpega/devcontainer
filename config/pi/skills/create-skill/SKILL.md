@@ -1,8 +1,10 @@
 ---
 name: create-skill
 description: >-
-  How to create or modify pi skills: structure, frontmatter, and bundled-script
-  conventions. Load when authoring a skill.
+  Use when creating or modifying pi skills — authoring or editing a SKILL.md,
+  frontmatter, directory structure, or bundled scripts, or packaging any
+  reusable capability as a skill. Load even if the user only says "add a
+  skill", "make this reusable", or asks how skills work.
 compatibility: pi implements the Agent Skills standard (agentskills.io).
 ---
 
@@ -47,9 +49,14 @@ When authoring or editing a skill, keep everything lean:
 - **Relative paths** in SKILL.md resolve against the skill dir — never hardcode
   absolute paths; reference files as `references/foo.md` and run scripts as
   `./scripts/foo ...`.
-- **Description is permanent context:** it is injected into the system prompt
-  of every session whether or not the skill is used, so keep it to 1-2 lines
-  and don't restate the skill name or other skills.
+- **Description is permanent context:** injected into the system prompt of
+  every session whether or not the skill is used — keep it concise and don't
+  restate the skill name or other skills.
+- **Description decides triggering:** agents load only `name` + `description`
+  before activating. Write it imperatively ("Use when..."), around user
+  intent, and pushy — list trigger contexts even when the user doesn't name
+  the domain. Distilled guide + eval workflow:
+  `references/optimizing-descriptions.md`.
 - If a script needs runtime deps or auth, say so in `compatibility` and/or a
   Setup section in SKILL.md.
 

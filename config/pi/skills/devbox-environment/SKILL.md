@@ -1,8 +1,10 @@
 ---
 name: devbox-environment
 description: >-
-  Devbox devcontainer facts: read-only rootfs, persistence rules. Load when
-  installing tools or changing configs.
+  Use when working in the devbox devcontainer: installing tools, changing
+  configs, or deciding whether something survives a restart, rebuild, or
+  docker compose down -v. Covers the read-only rootfs and persistence rules.
+  Load for apt-get, Dockerfile changes, or "will this persist?" questions.
 compatibility: devbox devcontainer (Ubuntu 24.04).
 ---
 
@@ -62,7 +64,8 @@ survive a container restart/rebuild.
 `tvly` (web search/fetch), `uv` (PEP 723 script runner), `gh`, `glab`, Node.js 24, `python3`, `nvim`
 (LazyVim), `lazygit`, `fd`, `rg`, `fzf`, `jq`, `tmux`, `git`, OpenJDK 21.
 
-## Verification
+## Validation
 
-- Verify persistence-relevant changes by checking mount sources:
-  `mount | grep -E "workspace|home/dev"`.
+Before claiming something persists, verify the mount source:
+`mount | grep -E "workspace|home/dev"`. A wrong persistence claim causes
+lost work — check, don't assume.

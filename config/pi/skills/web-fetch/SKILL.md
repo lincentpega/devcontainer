@@ -1,8 +1,10 @@
 ---
 name: web-fetch
 description: >-
-  Fetch a page's readable content: free Readability extraction, opt-in paid
-  Tavily. Use for reading docs, issues, or any URL.
+  Use when you need a web page's readable content — docs, issues, blog posts,
+  or any URL — rather than raw HTML. Free Readability extraction by default;
+  opt-in paid Tavily for JS-rendered or bot-blocked pages. Load for "read
+  this page", "summarize this article", or fetching page content.
 compatibility: Requires uv (Python package manager; image-baked in the devbox devcontainer). Paid path needs the web-search skill's `web` CLI (tvly + TAVILY_API_KEY).
 ---
 
