@@ -83,6 +83,29 @@ Pi runs in passthrough mode with Meridian by default (pi executes its own
 tools; Meridian forwards `tool_use` blocks). Your deepseek provider stays
 available — switch with `/model`.
 
+### Pi + Meridian: prompt config (one-time, in the box)
+
+Pi brings its own harness prompt, so the ~28 KB Claude Code system preset must
+be off for the `pi` adapter, and the pi-scrub plugin strips pi's harness
+fingerprint that Anthropic meters as extra usage:
+
+```json
+// ~/.config/meridian/sdk-features.json
+{
+  "pi": {
+    "codeSystemPrompt": false,
+    "clientSystemPrompt": true
+  }
+}
+```
+
+```bash
+cd ~/.config/meridian
+npm install @rynfar/meridian-plugin-pi-scrub
+# register the dist/index.js absolute path in ~/.config/meridian/plugins.json
+# then: curl -X POST http://127.0.0.1:3456/plugins/reload  (or restart meridian)
+```
+
 ## First-boot checklist
 
 1. `claude login` (OAuth — persists in the `devbox-home` volume)
