@@ -4,6 +4,8 @@
 config/pi/sessions/
 config/pi/models-store.json
 config/pi/credentials.json
+config/pi/mcp-cache.json
+config/pi/mcp-onboarding.json
 config/pi/npm/
 .DS_Store
 config/meridian/profiles/
