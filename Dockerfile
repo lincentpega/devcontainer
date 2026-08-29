@@ -62,6 +62,11 @@ RUN curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/${GLAB_VERSION}/dow
     && rm -rf /var/lib/apt/lists/* /tmp/glab.deb
 
 # ---------------------------------------------------------------------------
+# Ghostty terminfo (TERM=xterm-ghostty) — compiled via tic, for any terminal
+# ---------------------------------------------------------------------------
+COPY config/terminfo/ /usr/share/terminfo/
+
+# ---------------------------------------------------------------------------
 # User: dev (UID matches macOS host user — mounted workspace files stay owned
 # by the same UID on both sides)
 # ---------------------------------------------------------------------------
