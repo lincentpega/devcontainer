@@ -27,9 +27,9 @@ RUN curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${LAZ
     && rm /tmp/lazygit.tar.gz
 
 # ---------------------------------------------------------------------------
-# Node.js 22 LTS (for pi, Claude Code, Meridian — all npm globals)
+# Node.js 24 LTS (for pi, Claude Code, Meridian — all npm globals)
 # ---------------------------------------------------------------------------
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
