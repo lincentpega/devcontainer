@@ -16,12 +16,16 @@ services:
       - /tmp
       - /run
     read_only: true
-    security_opt:
-      - seccomp=default
     cap_drop:
       - ALL
     cap_add:
-      - NET_BIND_SERVICE         # sshd binds port 22 (<1024)
+      - NET_BIND_SERVICE   # sshd binds port 22 (<1024)
+      - CHOWN              # entrypoint: home ownership
+      - DAC_OVERRIDE       # entrypoint: write into dev's home volume
+      - FOWNER             # entrypoint: chown semantics
+      - SYS_CHROOT          # sshd preauth sandbox (chroot into /run/sshd)
+      - SETGID              # sshd sandbox: setgroups/setgid
+      - SETUID              # sshd sandbox: drop to nobody for preauth
     mem_limit: 4g
     cpus: 2
     restart: unless-stopped

@@ -43,7 +43,10 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
 ## Security envelope
 
 - read-only rootfs (`/tmp`, `/run` = tmpfs; `/home/dev` = volume)
-- `cap_drop: ALL` (+ `NET_BIND_SERVICE` for sshd), `seccomp=default`
+- `cap_drop: ALL`, with the minimal bootstrap set added back for sshd and the
+  entrypoint: `NET_BIND_SERVICE`, `CHOWN`, `DAC_OVERRIDE`, `FOWNER`,
+  `SYS_CHROOT`, `SETGID`, `SETUID`
+- seccomp: Docker daemon default
 - no docker.sock, no privileged mode
 - you log in as `dev` (non-root); sshd runs as root by necessity
 - host loopback services are **not** reachable from the container — if you ever

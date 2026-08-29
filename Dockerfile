@@ -12,12 +12,19 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget git build-essential unzip jq python3 \
-        openssh-server tmux ripgrep fd-find fzf lazygit gh \
+        openssh-server tmux ripgrep fd-find fzf gh \
         openjdk-21-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
 # fd-find installs as `fdfind`; LazyVim/telescope expect `fd`
 RUN ln -s /usr/bin/fdfind /usr/local/bin/fd
+
+# lazygit: not packaged in Ubuntu 24.04 — install the official static binary
+ARG LAZYGIT_VERSION=v0.64.1
+RUN curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_arm64.tar.gz" \
+        -o /tmp/lazygit.tar.gz \
+    && tar -xzf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit \
+    && rm /tmp/lazygit.tar.gz
 
 # ---------------------------------------------------------------------------
 # Node.js 22 LTS (for pi, Claude Code, Meridian — all npm globals)

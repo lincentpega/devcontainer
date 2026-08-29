@@ -11,6 +11,8 @@ mkdir -p /run/sshd
 
 # Install public keys from the read-only /auth mount (host ~/.ssh/authorized_keys).
 # Only PUBLIC keys reach the container; private keys never mount.
+# Note: only touch /home/dev/.ssh — it lives on the writable home volume;
+# /home/dev/.config/nvim is a read-only host mount and must never be written.
 if [ -f /auth/authorized_keys ]; then
     mkdir -p "/home/${USERNAME}/.ssh"
     cp /auth/authorized_keys "/home/${USERNAME}/.ssh/authorized_keys"
@@ -18,9 +20,6 @@ if [ -f /auth/authorized_keys ]; then
     chmod 600 "/home/${USERNAME}/.ssh/authorized_keys"
     chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}/.ssh"
 fi
-
-# Ensure home is owned by the user (first boot after volume creation)
-chown -R "${USERNAME}:${USERNAME}" "/home/${USERNAME}"
 
 echo "[devbox] sshd on :22 — log in as ${USERNAME}@localhost -p 2222"
 exec /usr/sbin/sshd -D -e
