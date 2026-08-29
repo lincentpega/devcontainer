@@ -1,5 +1,4 @@
 # devbox repo — machine-specific stuff never gets committed
 .env
 **/auth.json
-*.tar.gz
 .DS_Store
