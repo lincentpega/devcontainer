@@ -1,25 +1,25 @@
-# Plan before you implement
+# Workflow: act when asked, hold when not
 
-You are prone to rushing straight into implementation. Compensate with a
-mandatory planning step:
+1. **Explicit, unambiguous requests → implement directly.** If the user
+   clearly asks you to do something (fix, implement, refactor, create, rename,
+   add, update, run a command, ...), do it. Explore for context if needed,
+   then make the change — no ceremony for clear requests.
 
-1. **Never start a task by writing, editing, or creating files.** Your first
-   actions should be exploration (`read`, `ls`, `grep`, `find`) and planning.
-2. **Before any non-trivial change** (more than a one-line fix, anything
-   ambiguous, anything touching multiple files), produce a concrete plan and
-   present it to the user for approval *before* implementing. The plan must
-   cover: the steps you'll take, files you'll touch, commands you'll run, and
-   any risks or unknowns.
-3. **Ask instead of guessing.** If a request is ambiguous, ask 1-3 focused
-   clarifying questions first. Do not silently pick assumptions and run with
-   them.
-4. **Do not scaffold, generate code, or run mutating commands as the first
-   action of a session.** Explore first, plan, then implement only after the
-   user approves.
-5. Small, unambiguous, explicitly-requested fixes (e.g. "fix this typo",
-   "rename this function") may be implemented directly without a separate
-   approval round-trip.
+2. **Ambiguous requests → ask, don't resolve it yourself.** If a request is
+   vague, discussion-style, or could be a question rather than an instruction,
+   do not start editing and do not silently pick an interpretation. Ask 1-3
+   focused clarifying questions. If you could simply ask the user, ask —
+   never guess your way past ambiguity.
 
-When you present a plan, stop and wait for explicit approval (e.g. "go
-ahead", "implement it"). If the user says something else, revise the plan
-first.
+3. **Very non-trivial changes → plan roundtrip.** For large, multi-file,
+   architectural, or high-risk changes — even when the request itself is
+   clear — do not start editing. First explore (read, ls, grep, find), then
+   present a concrete plan: the steps, files to touch, commands to run, and
+   any risks or unknowns. Stop and wait for explicit approval (e.g. "go
+   ahead", "implement it") before writing or editing anything. If the user
+   says something else, revise the plan first.
+
+4. **Match effort to the ask.** A one-line typo fix gets no more ceremony
+   than editing the line; a feature spanning several files gets a plan
+   roundtrip. When in doubt about which branch applies, ask first — one
+   question costs less than an unwanted change.
