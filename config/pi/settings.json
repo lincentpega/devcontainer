@@ -3,7 +3,11 @@
   "theme": "dark",
   "enabledModels": [
     "deepseek/deepseek-v4-flash",
-    "anthropic/claude-opus-5"
+    "anthropic/claude-opus-5",
+    "deepseek/deepseek-v4-flash-vision-exp",
+    "openai-codex/gpt-5.6-terra",
+    "openai-codex/gpt-5.6-sol",
+    "openai-codex/gpt-5.6-luna"
   ],
   "modelThinkingLevels": {
     "deepseek/deepseek-v4-flash": "high"
@@ -11,5 +15,6 @@
   "packages": [
     "npm:pi-mcp-adapter"
   ],
-  "tuiMode": "fullscreen"
+  "tuiMode": "fullscreen",
+  "hideThinkingBlock": false
 }
