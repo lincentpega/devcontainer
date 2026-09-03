@@ -28,7 +28,9 @@ fi
 # compose time. The repo config files reference these as $ENV_VAR.
 ENV_FILE="/home/${USERNAME}/.devbox-env"
 : > "${ENV_FILE}"
-for v in TAVILY_API_KEY DEEPSEEK_API_KEY GITLAB_HOST GITLAB_TOKEN; do
+# DOCKER_HOST: compose-provided (points at the docker-dind sidecar). The rest
+# are compose-provided secrets/config as before.
+for v in TAVILY_API_KEY DEEPSEEK_API_KEY GITLAB_HOST GITLAB_TOKEN DOCKER_HOST; do
     val="${!v:-}"
     if [ -n "${val}" ]; then
         printf 'export %s=%q\n' "${v}" "${val}" >> "${ENV_FILE}"
@@ -37,10 +39,19 @@ done
 
 # Fixed container editor — nvim is baked into the image at /usr/local/bin/nvim.
 # Written unconditionally (not secrets, not per-machine knobs).
-printf 'export EDITOR=nvim\nexport VISUAL=nvim\n' >> "${ENV_FILE}"
+printf 'export EDITOR=nvim\nexport VISUAL=nvim\nexport JAVA_HOME=/opt/jdk-25\n' >> "${ENV_FILE}"
 chown "${USERNAME}:${USERNAME}" "${ENV_FILE}"
 grep -q '\.devbox-env' "/home/${USERNAME}/.bashrc" 2>/dev/null \
     || echo 'source "$HOME/.devbox-env" 2>/dev/null || true' >> "/home/${USERNAME}/.bashrc"
+
+# Boot-time (root) provisioning leaves root-owned entries in the home volume
+# (.pi, .config, ...) that break the non-root agents — pi writes ~/.pi/mcp.json
+# atomically as dev and fails with EACCES. Re-own any top-level entry not
+# owned by dev each boot. Deliberately NOT recursive: .pi/agent and
+# .config/nvim are separate host mounts owned on the host side.
+find "/home/${USERNAME}" -maxdepth 1 -mindepth 1 \
+    ! -user "${USERNAME}" \
+    -exec chown "${USERNAME}:${USERNAME}" {} + 2>/dev/null || true
 
 echo "[devbox] sshd on :22 — log in as ${USERNAME}@localhost -p 2222"
 exec /usr/sbin/sshd -D -e

@@ -1,12 +1,18 @@
 # devbox — runtime configuration
 # Security envelope: read-only rootfs, all caps dropped, seccomp default,
-# non-root work (you log in as `dev`), loopback-only services, no docker.sock.
+# non-root work (you log in as `dev`), loopback-only services.
+# Docker for integration tests lives in an isolated privileged `docker-dind`
+# sidecar (daemon-only); devbox itself still has NO docker.sock and no extra
+# caps — its docker CLI / Testcontainers talk to the sidecar over the compose
+# network via DOCKER_HOST=tcp://docker-dind:2375.
 services:
   devbox:
     build: .
     container_name: devbox
     depends_on:
       meridian:
+        condition: service_started
+      docker-dind:
         condition: service_started
     ports:
       - "2222:22"                # ssh — the single entry point
@@ -17,12 +23,14 @@ services:
       - ./config/nvim:/home/dev/.config/nvim:rw      # LazyVim config (repo) — rw so :Lazy update writes lazy-lock.json into the repo
       - ./config/pi:/home/dev/.pi/agent:rw          # pi config dir (repo) — pi can self-improve
       - ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro  # tmux config (repo) — mouse + extended keys for pi
+      - ${SSH_AUTHORIZED_KEYS:-$HOME/.ssh/devbox_authorized_keys}:/auth/authorized_keys:ro  # pubkeys only — entrypoint installs them for `dev`
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - DOCKER_HOST=tcp://docker-dind:2375   # docker-dind sidecar (plain TCP, internal network only)
     tmpfs:
       - /tmp
       - /run
@@ -37,8 +45,8 @@ services:
       - SYS_CHROOT          # sshd preauth sandbox (chroot into /run/sshd)
       - SETGID              # sshd sandbox: setgroups/setgid
       - SETUID              # sshd sandbox: drop to nobody for preauth
-    mem_limit: 4g
-    cpus: 2
+    mem_limit: 6g   # +2g headroom for the test JVM running Testcontainers-based ITs
+    cpus: 3
     restart: unless-stopped
     entrypoint: ["/entrypoint.sh"]
 
@@ -55,5 +63,23 @@ services:
       - MERIDIAN_DEFAULT_PROFILE=default
     restart: unless-stopped
 
+  # Docker daemon (Docker-in-Docker) — the only privileged service, and the
+  # only place that runs containers. Engine pinned to 28.x: Docker Desktop
+  # ships engine v29+, and Testcontainers ≤1.21 (Spring Boot 3.4.x services)
+  # has an API-level break with v29. Clients connect via DOCKER_HOST.
+  docker-dind:
+    image: docker:28-dind
+    container_name: devbox-docker-dind
+    privileged: true                 # dockerd requires it — isolated blast radius
+    environment:
+      - DOCKER_TLS_CERTDIR=          # empty -> dockerd listens on tcp://:2375
+    volumes:
+      - ${WORKSPACE:-../}:/workspace:rw   # same path as devbox: bind mounts resolve identically inside the daemon
+      - devbox-docker:/var/lib/docker     # persist pulled test images across restarts
+    mem_limit: 4g
+    cpus: 2
+    restart: unless-stopped
+
 volumes:
   devbox-home:
+  devbox-docker:

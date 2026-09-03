@@ -86,6 +86,58 @@ RUN curl -fsSL "https://gitlab.com/gitlab-org/cli/-/releases/${GLAB_VERSION}/dow
     && rm -rf /var/lib/apt/lists/* /tmp/glab.deb
 
 # ---------------------------------------------------------------------------
+# Docker CLI + compose plugin — CLIENT only, pinned to engine 28.x to match the
+# docker-dind sidecar (see compose.yml). devbox itself stays locked down: no
+# docker.sock, no extra caps — everything talks to the sidecar over the compose
+# network via DOCKER_HOST=tcp://docker-dind:2375.
+# ---------------------------------------------------------------------------
+ARG DOCKER_VERSION=28.0.1
+ARG TARGETARCH
+RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo aarch64 || echo x86_64) \
+    && curl -fsSL "https://download.docker.com/linux/static/stable/${ARCH}/docker-${DOCKER_VERSION}.tgz" \
+        -o /tmp/docker.tgz \
+    && tar -xzf /tmp/docker.tgz -C /tmp \
+    && install -m 0755 /tmp/docker/docker /usr/local/bin/docker \
+    && rm -rf /tmp/docker /tmp/docker.tgz
+
+# docker compose plugin — for ad-hoc `docker compose` runs of the repo's
+# docker-compose-local.yml files against the sidecar daemon. Latest stable
+# release; failure-tolerant so a transient GitHub hiccup never breaks a rebuild.
+RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo aarch64 || echo x86_64) \
+    && mkdir -p /usr/local/lib/docker/cli-plugins \
+    && if COMPOSE_TAG=$(curl -fsSL https://api.github.com/repos/docker/compose/releases/latest | jq -r .tag_name) \
+        && curl -fsSL "https://github.com/docker/compose/releases/download/${COMPOSE_TAG}/docker-compose-linux-${ARCH}" \
+            -o /usr/local/lib/docker/cli-plugins/docker-compose; then \
+        chmod 0755 /usr/local/lib/docker/cli-plugins/docker-compose; \
+        echo "[build] docker compose plugin ${COMPOSE_TAG} installed"; \
+    else \
+        echo "WARN: docker compose plugin fetch failed — continuing without it" >&2; \
+    fi
+
+# ---------------------------------------------------------------------------
+# JDK 25 (Temurin) — default java/javac. The Java services compile with
+# --release 25, which the apt JDK 21 (installed above) cannot do, and Ubuntu
+# 24.04 has no openjdk-25 package, so Temurin is baked into /opt and
+# registered via update-alternatives at higher priority — `java`/`javac`
+# resolve to 25 while JDK 21 stays installed as a fallback. JDK25_PATH is an
+# Adoptium API path segment: default resolves to the newest 25 GA on each
+# rebuild; pin by replacing with e.g. `version/25.0.4%2B1` (URL-encode +).
+# ---------------------------------------------------------------------------
+ARG JDK25_PATH=latest/25/ga
+ARG TARGETARCH
+RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo aarch64 || echo x64) \
+    && mkdir -p /opt/jdk-25 \
+    && curl -fsSL "https://api.adoptium.net/v3/binary/${JDK25_PATH}/linux/${ARCH}/jdk/hotspot/normal/eclipse" \
+        | tar -xz --strip-components=1 -C /opt/jdk-25 \
+    && update-alternatives --install /usr/bin/java java /opt/jdk-25/bin/java 2500 \
+        --slave /usr/bin/javac javac /opt/jdk-25/bin/javac \
+        --slave /usr/bin/jar jar /opt/jdk-25/bin/jar \
+        --slave /usr/bin/javap javap /opt/jdk-25/bin/javap \
+        --slave /usr/bin/jshell jshell /opt/jdk-25/bin/jshell \
+        --slave /usr/bin/keytool keytool /opt/jdk-25/bin/keytool \
+    && rm -rf /opt/jdk-25/man
+
+# ---------------------------------------------------------------------------
 # Ghostty terminfo (TERM=xterm-ghostty) — compiled via tic, for any terminal
 # ---------------------------------------------------------------------------
 COPY config/terminfo/ /usr/share/terminfo/
@@ -98,6 +150,15 @@ RUN useradd -m -u ${USER_UID} -s /bin/bash ${USERNAME}
 
 # SSH host keys baked at build time (rootfs is read-only at runtime)
 RUN ssh-keygen -A
+
+# Public-key auth only. `dev` has no password, so a password prompt can never
+# succeed — refuse the attempt outright instead of hiding a missing
+# /auth/authorized_keys behind an unanswerable prompt.
+RUN printf '%s\n' \
+        'PasswordAuthentication no' \
+        'KbdInteractiveAuthentication no' \
+        'PermitRootLogin no' \
+        > /etc/ssh/sshd_config.d/devbox.conf
 
 # ---------------------------------------------------------------------------
 # Entrypoint
