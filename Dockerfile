@@ -129,12 +129,10 @@ RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo aarch64 || echo x64) \
     && mkdir -p /opt/jdk-25 \
     && curl -fsSL "https://api.adoptium.net/v3/binary/${JDK25_PATH}/linux/${ARCH}/jdk/hotspot/normal/eclipse" \
         | tar -xz --strip-components=1 -C /opt/jdk-25 \
-    && update-alternatives --install /usr/bin/java java /opt/jdk-25/bin/java 2500 \
-        --slave /usr/bin/javac javac /opt/jdk-25/bin/javac \
-        --slave /usr/bin/jar jar /opt/jdk-25/bin/jar \
-        --slave /usr/bin/javap javap /opt/jdk-25/bin/javap \
-        --slave /usr/bin/jshell jshell /opt/jdk-25/bin/jshell \
-        --slave /usr/bin/keytool keytool /opt/jdk-25/bin/keytool \
+    && for tool in /opt/jdk-25/bin/*; do \
+        t="$(basename "${tool}")"; \
+        update-alternatives --install "/usr/bin/${t}" "${t}" "${tool}" 2500; \
+    done \
     && rm -rf /opt/jdk-25/man
 
 # ---------------------------------------------------------------------------
