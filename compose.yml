@@ -29,6 +29,7 @@ services:
       - ${SSH_AUTHORIZED_KEYS:-$HOME/.ssh/devbox_authorized_keys}:/auth/authorized_keys:ro  # pubkeys only — entrypoint installs them for `dev`
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
+      - COLORTERM=truecolor
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
