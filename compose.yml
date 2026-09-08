@@ -48,8 +48,8 @@ services:
       - SYS_CHROOT          # sshd preauth sandbox (chroot into /run/sshd)
       - SETGID              # sshd sandbox: setgroups/setgid
       - SETUID              # sshd sandbox: drop to nobody for preauth
-    mem_limit: 6g   # +2g headroom for the test JVM running Testcontainers-based ITs
-    cpus: 3
+    mem_limit: ${DEVBOX_MEM_LIMIT:-6g}   # +2g headroom for the test JVM running Testcontainers-based ITs
+    cpus: ${DEVBOX_CPUS:-3}
     restart: unless-stopped
     entrypoint: ["/entrypoint.sh"]
 
@@ -79,8 +79,8 @@ services:
     volumes:
       - ${WORKSPACE:-../}:/workspace:rw   # same path as devbox: bind mounts resolve identically inside the daemon
       - devbox-docker:/var/lib/docker     # persist pulled test images across restarts
-    mem_limit: 4g
-    cpus: 2
+    mem_limit: ${DIND_MEM_LIMIT:-4g}
+    cpus: ${DIND_CPUS:-2}
     restart: unless-stopped
 
 volumes:
