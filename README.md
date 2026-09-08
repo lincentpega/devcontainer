@@ -9,7 +9,7 @@ only mounts the workspace and your public keys.
 ```bash
 orb start                      # start OrbStack (Docker daemon)
 docker compose up -d --build   # build + start devbox
-ssh -p 2222 dev@localhost      # land in the box
+ssh devbox                     # land in the box (see "SSH access" below)
 ```
 
 Web search works out of the box: the image bakes the official Tavily CLI
@@ -36,7 +36,7 @@ git push/pull (review loop)             Claude Code
 mounts:                                 nvim + LazyVim + jdtls (via mason)
   ~/Development → /workspace (rw)       tmux
   ~/.config/nvim (ro)                   config/tmux → ~/.tmux.conf (ro, in-box)
-  ~/.ssh/authorized_keys (ro, pubkeys only)
+  ~/.ssh/devbox_authorized_keys (ro, pubkeys only)
 ```
 
 - The **agent cannot reach anything that isn't mounted or loopback-bound** in
@@ -76,13 +76,43 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
   (mounted `~/.pi/agent/skills/`, discovered by pi). Ask pi to "search the
   web" — it routes via the `tavily-search` skill. Raw CLI: `tvly search "..."`.
 
+## SSH access (one-time, on the host)
+
+The box accepts **public-key auth only** — `dev` has no password, so a
+password prompt means no key reached sshd. Keys come from a dedicated file,
+not the host's own `~/.ssh/authorized_keys`, so nothing that can log into the
+devbox can log into the Mac:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/devbox_key -C devbox
+cp ~/.ssh/devbox_key.pub ~/.ssh/devbox_authorized_keys
+docker compose up -d --force-recreate devbox
+```
+
+Override the path with `SSH_AUTHORIZED_KEYS` in `.env` to use a different
+file. Add to `~/.ssh/config` so plain `ssh devbox` works — host keys are baked
+at image build time and rotate on every rebuild, hence the relaxed checking on
+this loopback-only host:
+
+```
+Host devbox
+  HostName localhost
+  Port 2222
+  User dev
+  IdentityFile ~/.ssh/devbox_key
+  IdentitiesOnly yes
+  StrictHostKeyChecking no
+  UserKnownHostsFile /dev/null
+  LogLevel ERROR
+```
+
 ## Tavily auth (one-time, in the box)
 
 Credentials live in `~/.tavily/config.json` on the `devbox-home` volume, so
 they survive rebuilds — only authenticate once per box:
 
 ```bash
-ssh -p 2222 dev@localhost
+ssh devbox
 tvly login          # browser OAuth (needs your host browser)
 # or, headless:  tvly login --api-key tvly-...
 tvly auth --json    # verify -> {"authenticated": true}
@@ -184,12 +214,13 @@ npm install @rynfar/meridian-plugin-pi-scrub
 
 ## First-boot checklist
 
-1. `claude login` (OAuth — persists in the `devbox-home` volume)
-2. `meridian` (binds 127.0.0.1:3456, container-local)
-3. add pi provider override (above)
-4. git: add your deploy keys to `~/.ssh` inside the box
-5. `nvim` → LazyVim bootstrap → `:MasonInstall jdtls`
-6. `tvly login` (Tavily web search — see above)
+1. SSH access: `~/.ssh/devbox_authorized_keys` + `Host devbox` (see above)
+2. `claude login` (OAuth — persists in the `devbox-home` volume)
+3. `meridian` (binds 127.0.0.1:3456, container-local)
+4. add pi provider override (above)
+5. git: add your deploy keys to `~/.ssh` inside the box
+6. `nvim` → LazyVim bootstrap → `:MasonInstall jdtls`
+7. `tvly login` (Tavily web search — see above)
 
 ## Decisions baked in
 

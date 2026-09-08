@@ -1,0 +1,366 @@
+#!/usr/bin/env bash
+#
+# subagent — delegate work to isolated `pi -p` sub-processes.
+#
+#   run   <name-ish flags> -- <task>      run in foreground (synchronous)
+#   start [--name N] ... -- <task>        run detached in tmux (async, parallel)
+#   wait  [--timeout S] <name>...         block until each job finishes, print results
+#   status [<name>...]                    one-line state per job (never blocks)
+#   logs  <name> [-n LINES]               show job output
+#   kill  <name>...                       stop running jobs (keep logs)
+#   list                                  all known jobs + state
+#   prune [--all]                         kill sessions + delete job dirs
+#
+# Shared flags (run/start):
+#   --provider P --model M                pass-through to pi (only if a model is wanted)
+#   --dir DIR                             run in this directory (default: current)
+#   --tools a,b,c / --exclude-tools a,b   pi tool allow/deny lists
+#   --role-file FILE                      append extra text to the worker system prompt
+#   --plain                               no worker role appended (raw pi default)
+#   --keep-session                        persist the pi session instead of --no-session
+#   --at FILE                             include file in the task (repeatable, like pi @file)
+#   --timeout S                           run: kill child after S sec; wait: stop waiting
+#
+# Jobs store state under $SUBAGENT_JOB_ROOT/<name>/ (run.log, exit.code, meta).
+# Exit codes: 0 done, 2 usage, 124 timeout, 3 tmux/pi missing, 4 job interrupted.
+set -uo pipefail
+
+PI_BIN="${SUBAGENT_PI_BIN:-pi}"
+JOB_ROOT="${SUBAGENT_JOB_ROOT:-/tmp/pi-subagents}"
+
+DEFAULT_ROLE='You are a subagent launched by a parent pi agent to work on a delegated task in an isolated context. Work autonomously until the task is complete. Do not ask the caller for clarification: if an instruction is ambiguous, state the assumption you used and proceed. You have the same tools and repository access as a normal pi session. Do not start interactive or blocking processes. When you are done, reply with a concise report that starts with the line "## Result" followed by a few bullets: what was done, key findings or decisions, files changed (paths + one-line reason), and anything the caller must know (assumptions, open risks, suggested follow-ups). Keep the report tight; full detail stays in your own context.'
+
+USAGE=$(cat <<'EOF'
+usage: ./scripts/subagent COMMAND [flags] [-- <task>]
+
+commands:
+  run   [flags] -- <task>        synchronous: streams output, exits with pi's code
+  start [flags] -- <task>        tmux-detached job; prints name + log path
+  wait  [--timeout S] <name>..   block until done (all named), print reports
+  status [<name>...]             never-blocking state report (default: all jobs)
+  logs  <name> [-n LINES]        show job output tail
+  kill  <name>...                stop running jobs (logs kept)
+  list                           all known jobs + state
+  prune [--all]                  kill sessions + delete job dirs
+
+flags (run/start):
+  --provider P --model M     pass to pi (use only when a specific model is wanted)
+  --dir DIR                  working directory (default: current)
+  --tools LIST               pi tool allowlist, e.g. read,bash,edit,write
+  --exclude-tools LIST       pi tool denylist
+  --role-file FILE           extra system-prompt text appended after default role
+  --plain                    no worker role; plain pi session
+  --keep-session             keep pi session files (default: --no-session)
+  --at FILE                  include file(s) in task, like pi @file (repeatable)
+  --name NAME                job name for start (default: sub-<ts>-<pid>)
+  --timeout S                run: kill child after S; wait: stop waiting after S
+EOF
+)
+
+log() { printf '%s\n' "$*" >&2; }
+die() { log "subagent: $*"; exit 2; }
+fatal() { log "subagent: $*"; exit "${2:-3}"; }
+
+require_tmux() { command -v tmux >/dev/null || fatal "tmux not found (needed for start/wait/kill)"; }
+jobdir_of() { printf '%s/%s' "$JOB_ROOT" "$1"; }
+
+valid_name() { [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$ ]]; }
+
+check_pi() {
+  local resolved
+  if [[ "$PI_BIN" == */* ]]; then resolved="$PI_BIN"; else resolved="$(command -v "$PI_BIN" 2>/dev/null || true)"; fi
+  [[ -n "$resolved" && -x "$resolved" ]] || fatal "pi binary not found: $PI_BIN"
+  printf '%s' "$resolved"
+}
+
+# ---------- shared flag parsing ----------
+# fills: ARG_DIR ARG_PROVIDER ARG_MODEL ARG_TOOLS ARG_XTOOLS ARG_ROLEFILE ARG_PLAIN
+#        ARG_KEEPSESSION ARG_AT ARG_TIMEOUT ARG_TASK (array ARG_AT)
+parse_common() {
+  ARG_DIR="$(pwd)"; ARG_PROVIDER=""; ARG_MODEL=""; ARG_TOOLS=""; ARG_XTOOLS=""
+  ARG_ROLEFILE=""; ARG_PLAIN=0; ARG_KEEPSESSION=0; ARG_TIMEOUT=""; ARG_AT=()
+  local after_dashdash=0
+  while (($#)); do
+    local a="$1"; shift
+    if ((after_dashdash)); then ARG_TASK=("$a" "$@"); return; fi
+    case "$a" in
+      --) after_dashdash=1 ;;
+      --dir) [[ $# -gt 0 ]] || die "--dir needs a value"; ARG_DIR="$1"; shift ;;
+      --provider) [[ $# -gt 0 ]] || die "--provider needs a value"; ARG_PROVIDER="$1"; shift ;;
+      --model) [[ $# -gt 0 ]] || die "--model needs a value"; ARG_MODEL="$1"; shift ;;
+      --tools) [[ $# -gt 0 ]] || die "--tools needs a value"; ARG_TOOLS="$1"; shift ;;
+      --exclude-tools) [[ $# -gt 0 ]] || die "--exclude-tools needs a value"; ARG_XTOOLS="$1"; shift ;;
+      --role-file) [[ $# -gt 0 ]] || die "--role-file needs a value"; ARG_ROLEFILE="$1"; shift ;;
+      --plain) ARG_PLAIN=1 ;;
+      --keep-session) ARG_KEEPSESSION=1 ;;
+      --at) [[ $# -gt 0 ]] || die "--at needs a file"; ARG_AT+=("$1"); shift ;;
+      --timeout) [[ $# -gt 0 ]] || die "--timeout needs a value"; ARG_TIMEOUT="$1"; shift ;;
+      *) die "unknown flag: $a" ;;
+    esac
+  done
+  [[ -n "${ARG_TASK:-}" ]] || die "no task given (after --)"
+  [[ -d "$ARG_DIR" ]] || die "not a directory: $ARG_DIR"
+}
+
+# builds pi argv into global array PI_ARGV (excluding the task/message)
+build_pi_argv() {
+  PI_ARGV=()
+  [[ -n "$ARG_PROVIDER" ]] && PI_ARGV+=(--provider "$ARG_PROVIDER")
+  [[ -n "$ARG_MODEL" ]] && PI_ARGV+=(--model "$ARG_MODEL")
+  [[ -n "$ARG_TOOLS" ]] && PI_ARGV+=(--tools "$ARG_TOOLS")
+  [[ -n "$ARG_XTOOLS" ]] && PI_ARGV+=(--exclude-tools "$ARG_XTOOLS")
+  if ((!ARG_PLAIN)); then
+    local role="$DEFAULT_ROLE"
+    if [[ -n "$ARG_ROLEFILE" ]]; then
+      [[ -f "$ARG_ROLEFILE" ]] || die "role file not found: $ARG_ROLEFILE"
+      role+=$'\n\n'"$(cat "$ARG_ROLEFILE")"
+    fi
+    PI_ARGV+=(--append-system-prompt "$role")
+  fi
+  ((ARG_KEEPSESSION)) || PI_ARGV+=(--no-session)
+  local f
+  for f in "${ARG_AT[@]}"; do
+    local abs
+    if [[ "$f" == /* ]]; then abs="$f"; else abs="$ARG_DIR/$f"; fi
+    [[ -e "$abs" ]] || die "included file not found: $f"
+    PI_ARGV+=("@$abs")
+  done
+}
+
+state_of() { # <name> -> prints: running | done:<code> | interrupted | unknown
+  local name="$1" jd; jd="$(jobdir_of "$name")"
+  [[ -d "$jd" ]] || { echo "unknown"; return; }
+  if [[ -f "$jd/exit.code" ]]; then printf 'done:%s' "$(cat "$jd/exit.code")"
+  elif tmux has-session -t "$name" 2>/dev/null; then echo "running"
+  else echo "interrupted"; fi
+}
+
+# ---------- run (foreground) ----------
+cmd_run() {
+  parse_common "$@"
+  local pi; pi="$(check_pi)"
+  build_pi_argv
+  local rc=0
+  ( cd -- "$ARG_DIR" && exec "$pi" "${PI_ARGV[@]}" -p -- "${ARG_TASK[@]}" ) || rc=$?
+  exit "$rc"
+}
+
+# ---------- start (tmux detached) ----------
+cmd_start() {
+  require_tmux
+  local name="" jd
+  local rest=()
+  while (($#)); do
+    case "$1" in
+      --name) [[ $# -gt 1 ]] || die "--name needs a value"; name="$2"; shift 2 ;;
+      --) rest+=("$@"); break ;;
+      *) rest+=("$1"); shift ;;
+    esac
+  done
+  [[ -z "$name" ]] && name="sub-$(date +%s)-$$"
+  valid_name "$name" || die "bad job name '$name' (use [A-Za-z0-9_-])"
+  tmux has-session -t "$name" 2>/dev/null && die "tmux session '$name' already exists (kill it first)"
+  set -- "${rest[@]}"
+  parse_common "$@"
+  local pi; pi="$(check_pi)"
+  build_pi_argv
+
+  jd="$(jobdir_of "$name")"
+  mkdir -p "$JOB_ROOT"
+  rm -rf "$jd"; mkdir -p "$jd"
+
+  local resolved_pi="$pi"
+  local argv=( "$ARG_DIR" "$resolved_pi" "${PI_ARGV[@]}" -p -- "${ARG_TASK[@]}" )
+  printf '%s\0' "${argv[@]}" | base64 -w0 > "$jd/argv.b64" || die "base64 encode failed"
+
+  cat > "$jd/job.sh" <<'JOBEOF'
+#!/usr/bin/env bash
+jobdir="$1"
+cd -- "$jobdir" || exit 1
+mapfile -d '' -t argv < <(base64 -d < argv.b64 2>/dev/null) || exit 1
+cd -- "${argv[0]}" || { echo "bad workdir: ${argv[0]}" > "$jobdir/run.log"; echo 1 > "$jobdir/exit.code"; exit 1; }
+"${argv[1]}" "${argv[@]:2}" > "$jobdir/run.log" 2>&1
+status=$?
+printf '%s' "$status" > "$jobdir/exit.code"
+exit 0
+JOBEOF
+  chmod +x "$jd/job.sh"
+
+  {
+    echo "name=$name"
+    echo "dir=$ARG_DIR"
+    echo "provider=${ARG_PROVIDER:-}"
+    echo "model=${ARG_MODEL:-}"
+    echo "started=$(date -Is)"
+    echo "log=$jd/run.log"
+  } > "$jd/meta"
+
+  local pane_cmd="bash $(printf '%q' "$jd/job.sh") $(printf '%q' "$jd")"
+  tmux new-session -d -s "$name" "$pane_cmd" || die "tmux new-session failed"
+  log "started: $name ($(state_of "$name"))"
+  log "log:     $jd/run.log"
+  log "collect: ./scripts/subagent wait $name"
+  printf '%s\n' "$name"
+}
+
+# ---------- wait ----------
+cmd_wait() {
+  require_tmux
+  local timeout="${SUBAGENT_WAIT_DEFAULT:-600}" lines=200 show_all=0
+  local names=() rest=()
+  while (($#)); do
+    case "$1" in
+      --timeout) [[ $# -gt 1 ]] || die "--timeout needs a value"; timeout="$2"; shift 2 ;;
+      -n) [[ $# -gt 1 ]] || die "-n needs a value"; lines="$2"; shift 2 ;;
+      --full) show_all=1 ;;
+      -*) die "unknown flag: $1" ;;
+      *) rest+=("$1"); shift ;;
+    esac
+  done
+  [[ ${#rest[@]} -gt 0 ]] || die "wait needs at least one job name"
+  names=("${rest[@]}")
+  local n; for n in "${names[@]}"; do valid_name "$n" || die "bad job name '$n'"; done
+
+  local deadline=$(( $(date +%s) + timeout ))
+  # a job is finished when exit.code exists (completed) or its tmux session is
+  # gone without one (interrupted); only genuinely-live jobs keep us waiting
+  while :; do
+    local pending=()
+    for n in "${names[@]}"; do
+      if [[ ! -f "$(jobdir_of "$n")/exit.code" ]] && tmux has-session -t "$n" 2>/dev/null; then
+        pending+=("$n")
+      fi
+    done
+    ((${#pending[@]} == 0)) && break
+    (( $(date +%s) >= deadline )) && { log "subagent: timeout after ${timeout}s, still waiting: ${pending[*]} (jobs keep running; use wait again or kill)"; return 124; }
+    sleep 0.5
+  done
+
+  local rc=0
+  for n in "${names[@]}"; do
+    local jd; jd="$(jobdir_of "$n")"
+    echo "════ $n ════"
+    if [[ -f "$jd/exit.code" ]]; then
+      local code; code="$(cat "$jd/exit.code")"
+      echo "[exit $code] log: $jd/run.log"
+      if ((show_all)); then cat "$jd/run.log"
+      else
+        local total; total="$(wc -l < "$jd/run.log")"
+        tail -n "$lines" "$jd/run.log"
+        (( total > lines )) && echo "[... truncated: $total lines total; see $jd/run.log]"
+      fi
+      ((code != 0)) && rc=1
+    else
+      echo "[interrupted — no result] log: $jd/run.log"
+      rc=1
+    fi
+  done
+  exit "$rc"
+}
+
+# ---------- status ----------
+cmd_status() {
+  local names=("$@")
+  if ((${#names[@]} == 0)); then
+    mkdir -p "$JOB_ROOT"
+    for jd in "$JOB_ROOT"/*/; do
+      [[ -d "$jd" ]] || continue
+      names+=("$(basename "$jd")")
+    done
+  fi
+  ((${#names[@]} == 0)) && { echo "no subagent jobs under $JOB_ROOT"; return 0; }
+  local n st model dir
+  for n in "${names[@]}"; do
+    st="$(state_of "$n")"
+    model=""; dir=""
+    local jd; jd="$(jobdir_of "$n")"
+    if [[ -f "$jd/meta" ]]; then
+      model="$(awk -F= '/^model=/{print $2}' "$jd/meta")"
+      dir="$(awk -F= '/^dir=/{print $2}' "$jd/meta")"
+    fi
+    printf '%-24s %-12s %s%s\n' "$n" "$st" "${model:+model=$model }" "${dir:+dir=$dir}"
+  done
+}
+
+# ---------- logs ----------
+cmd_logs() {
+  local name="" lines=200
+  local rest=()
+  while (($#)); do
+    case "$1" in
+      -n) [[ $# -gt 1 ]] || die "-n needs a value"; lines="$2"; shift 2 ;;
+      -*) die "unknown flag: $1" ;;
+      *) rest+=("$1"); shift ;;
+    esac
+  done
+  ((${#rest[@]} == 1)) || die "logs needs exactly one job name"
+  name="${rest[0]}"
+  valid_name "$name" || die "bad job name '$name'"
+  local jd; jd="$(jobdir_of "$name")"
+  [[ -f "$jd/run.log" ]] || { echo "no log for '$name' ($jd/run.log)"; return 1; }
+  tail -n "$lines" "$jd/run.log"
+}
+
+# ---------- kill ----------
+cmd_kill() {
+  require_tmux
+  (($# > 0)) || die "kill needs at least one job name"
+  local n rc=0
+  for n in "$@"; do
+    valid_name "$n" || { log "bad job name: $n"; rc=1; continue; }
+    if tmux has-session -t "$n" 2>/dev/null; then
+      tmux kill-session -t "$n" 2>/dev/null && log "killed: $n" || { log "failed to kill: $n"; rc=1; }
+    else
+      log "not running: $n"
+    fi
+  done
+  exit "$rc"
+}
+
+# ---------- list / prune ----------
+cmd_list() {
+  local names=()
+  mkdir -p "$JOB_ROOT"
+  for jd in "$JOB_ROOT"/*/; do
+    [[ -d "$jd" ]] || continue
+    names+=("$(basename "$jd")")
+  done
+  if ((${#names[@]} == 0)); then echo "no subagent jobs"; return 0; fi
+  cmd_status "${names[@]}"
+}
+
+cmd_prune() {
+  require_tmux
+  local all=0
+  [[ "${1:-}" == "--all" ]] && all=1
+  local jd
+  for jd in "$JOB_ROOT"/*/; do
+    [[ -d "$jd" ]] || continue
+    local n; n="$(basename "$jd")"
+    tmux has-session -t "$n" 2>/dev/null && tmux kill-session -t "$n" 2>/dev/null
+    if ((all)); then
+      rm -rf "$jd"; log "pruned: $n"
+    else
+      # finished jobs (exit.code present) get removed; running kept
+      [[ -f "$jd/exit.code" ]] && { rm -rf "$jd"; log "pruned: $n"; }
+    fi
+  done
+}
+
+main() {
+  (($# > 0)) || { printf '%s\n' "$USAGE"; exit 2; }
+  local cmd="$1"; shift
+  case "$cmd" in
+    run) cmd_run "$@" ;;
+    start) cmd_start "$@" ;;
+    wait) cmd_wait "$@" ;;
+    status) cmd_status "$@" ;;
+    logs) cmd_logs "$@" ;;
+    kill) cmd_kill "$@" ;;
+    list) cmd_list ;;
+    prune) cmd_prune "$@" ;;
+    -h|--help|help) printf '%s\n' "$USAGE"; exit 0 ;;
+    *) log "unknown command: $cmd"; printf '%s\n' "$USAGE" >&2; exit 2 ;;
+  esac
+}
+main "$@"

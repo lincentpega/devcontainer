@@ -1,13 +1,11 @@
 {
   "lastChangelogVersion": "0.84.4",
-  "theme": "dark",
+  "theme": "light/dark",
   "enabledModels": [
     "deepseek/deepseek-v4-flash",
     "anthropic/claude-opus-5",
     "deepseek/deepseek-v4-flash-vision-exp",
-    "openai-codex/gpt-5.6-terra",
-    "openai-codex/gpt-5.6-sol",
-    "openai-codex/gpt-5.6-luna"
+    "openai-codex/gpt-5.6-terra"
   ],
   "modelThinkingLevels": {
     "deepseek/deepseek-v4-flash": "high"
@@ -16,5 +14,5 @@
     "npm:pi-mcp-adapter"
   ],
   "tuiMode": "fullscreen",
-  "hideThinkingBlock": false
+  "hideThinkingBlock": true
 }

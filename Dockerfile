@@ -49,7 +49,7 @@ RUN curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSIO
 # ---------------------------------------------------------------------------
 # pi installs with --ignore-scripts (its README requires it);
 # claude-code and meridian MUST run their postinstalls (native binary).
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.0
 RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
 
 # ---------------------------------------------------------------------------
