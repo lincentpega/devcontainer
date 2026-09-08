@@ -3,6 +3,7 @@
 
 FROM ubuntu:24.04
 
+ARG TARGETARCH
 ARG USERNAME=dev
 ARG USER_UID=501
 ENV DEBIAN_FRONTEND=noninteractive
@@ -22,7 +23,8 @@ RUN ln -s /usr/bin/fdfind /usr/local/bin/fd
 
 # lazygit: not packaged in Ubuntu 24.04 — install the official static binary
 ARG LAZYGIT_VERSION=v0.64.1
-RUN curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_arm64.tar.gz" \
+RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo arm64 || echo x86_64) \
+    && curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${LAZYGIT_VERSION}/lazygit_${LAZYGIT_VERSION#v}_Linux_${ARCH}.tar.gz" \
         -o /tmp/lazygit.tar.gz \
     && tar -xzf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit \
     && rm /tmp/lazygit.tar.gz
@@ -38,10 +40,11 @@ RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
 # Neovim (pinned release tarball — apt version is too old for LazyVim)
 # ---------------------------------------------------------------------------
 ARG NVIM_VERSION=v0.12.5
-RUN curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-arm64.tar.gz" \
+RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo arm64 || echo x86_64) \
+    && curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-${ARCH}.tar.gz" \
         -o /tmp/nvim.tar.gz \
     && tar -xzf /tmp/nvim.tar.gz -C /opt \
-    && ln -s /opt/nvim-linux-arm64/bin/nvim /usr/local/bin/nvim \
+    && ln -s "/opt/nvim-linux-${ARCH}/bin/nvim" /usr/local/bin/nvim \
     && rm /tmp/nvim.tar.gz
 
 # ---------------------------------------------------------------------------

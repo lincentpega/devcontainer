@@ -7,7 +7,10 @@
 # network via DOCKER_HOST=tcp://docker-dind:2375.
 services:
   devbox:
-    build: .
+    build:
+      context: .
+      args:
+        USER_UID: ${USER_UID:-501}
     container_name: devbox
     depends_on:
       meridian:
