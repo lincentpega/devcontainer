@@ -13,10 +13,11 @@ ARG USER_UID=501
 ENV DEBIAN_FRONTEND=noninteractive
 
 # ---------------------------------------------------------------------------
-# Base packages — the harness agents shell out to git/ssh/curl/python
+# Base packages — the harness agents shell out to git/ssh/curl/python; socat
+# bridges the published port to dsh, which must bind the container loopback
 # ---------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl git openssh-client \
+        ca-certificates curl git openssh-client socat \
         python3 python3-pip python3-venv jq \
     && rm -rf /var/lib/apt/lists/*
 

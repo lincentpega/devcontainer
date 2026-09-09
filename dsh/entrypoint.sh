@@ -1,16 +1,18 @@
 #!/bin/sh
-# dsh entrypoint: install the web profile's plugin bundles, then start the
-# DeepSeek Harness web service.
-# Mirrors the VPS unit's ExecStart, adapted for Docker: the web app binds
-# 0.0.0.0 *inside* the container because compose's port publish (docker-proxy)
-# connects to the container's eth0, not its loopback — a 127.0.0.1 bind is
-# unreachable through the publish. The host-facing side stays loopback-only:
-# compose maps 127.0.0.1:${DSH_PORT} → 3080, so the GUI is never on 0.0.0.0.
-# --trusted-host is passed only when set — loopback origins need none.
+# dsh entrypoint: install the web profile's plugin bundles, then run the
+# DeepSeek Harness web service behind a loopback relay.
+# Mirrors the VPS unit's ExecStart:
+#   node --expose-internals .../dsh/lib/bin.js web \
+#     --host 127.0.0.1 --port 3080 --no-open [--trusted-host $DSH_TRUSTED_HOST]
+# DSH intentionally refuses non-loopback binds (it guards against exposing
+# remote code execution on the network), so it listens on the container's
+# loopback only. Docker's port publish (docker-proxy) connects to the
+# container's eth0 instead, so a socat relay accepts the published port there
+# and forwards to dsh on loopback. Host-facing exposure stays loopback-only:
+# compose maps 127.0.0.1:${DSH_PORT} -> 3080.
 set -eu
 
 DSH_BIN="$(npm root -g)/@deepseek-ai/dsh/lib/bin.js"
-PORT="${DSH_PORT:-3080}"
 
 # DSH does not install a profile's plugin bundles itself: boot aborts with
 # "cannot resolve profile bundle ..." unless they are present in the profile
@@ -23,10 +25,21 @@ if [ ! -d "$PROFILE_WEB/node_modules/@deepseek-ai/dsh-subagent-claude-code" ]; t
 fi
 
 if [ -n "${DSH_TRUSTED_HOST:-}" ]; then
-    exec node --expose-internals "${DSH_BIN}" web \
-        --host 0.0.0.0 --port "${PORT}" --no-open \
-        --trusted-host "${DSH_TRUSTED_HOST}"
+    node --expose-internals "${DSH_BIN}" web \
+        --host 127.0.0.1 --port 3080 --no-open \
+        --trusted-host "${DSH_TRUSTED_HOST}" &
+else
+    node --expose-internals "${DSH_BIN}" web \
+        --host 127.0.0.1 --port 3080 --no-open &
 fi
+DSH_PID=$!
 
-exec node --expose-internals "${DSH_BIN}" web \
-    --host 0.0.0.0 --port "${PORT}" --no-open
+trap 'kill "${DSH_PID}" "${SOCAT_PID}" 2>/dev/null || true; exit 143' TERM INT
+
+socat TCP-LISTEN:3080,bind=0.0.0.0,reuseaddr,fork TCP:127.0.0.1:3080 &
+SOCAT_PID=$!
+
+wait "${DSH_PID}"
+rc=$?
+kill "${SOCAT_PID}" 2>/dev/null || true
+exit "${rc}"

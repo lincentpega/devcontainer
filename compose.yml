@@ -70,10 +70,13 @@ services:
   # DeepSeek Harness web service (ported from the dsh-vps native deployment).
   # Its DSH home is the repo-managed ./dsh-config tree, bind-mounted at
   # /home/dev/.dsh and writable so DSH can maintain it (profiles, sessions —
-  # all gitignored by dsh-config/.gitignore). Published loopback-only: the GUI
-  # is reachable at http://127.0.0.1:3080 on the host, never on 0.0.0.0 —
-  # same exposure as the VPS listener. Runs as the same `dev` UID as devbox,
-  # so agent writes to the shared /workspace mount keep host ownership.
+  # all gitignored by dsh-config/.gitignore). DSH refuses non-loopback binds,
+  # so inside the container it listens on loopback and the entrypoint's socat
+  # relay bridges the published port (see dsh/entrypoint.sh). Published
+  # loopback-only: the GUI is reachable at http://127.0.0.1:3080 on the host,
+  # never on 0.0.0.0 — same exposure as the VPS listener. Runs as the same
+  # `dev` UID as devbox, so agent writes to the shared /workspace mount keep
+  # host ownership.
   dsh:
     build:
       context: ./dsh

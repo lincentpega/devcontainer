@@ -230,6 +230,9 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
   Redmine MCP profile. See `.env.example`.
 - The service runs as the same `dev` UID as devbox, so agents it spawns write
   to the shared `/workspace` mount with host ownership.
+- DSH refuses non-loopback binds by design, so inside the container it listens
+  on loopback and the entrypoint's socat relay bridges the published port —
+  the host-facing publish remains `127.0.0.1` only (see `dsh/entrypoint.sh`).
 - First boot auto-installs the `web` profile bundles into the mounted
   `dsh-config` (the entrypoint runs `dsh plugin --profile web install` when
   they are missing — DSH does not install them itself; needs network once,
