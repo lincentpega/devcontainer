@@ -33,6 +33,9 @@ services:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GLAB_CONFIG_DIR=/home/dev/.dsh/glab-cli   # glab state in the devbox-home volume; entrypoint auto-auths on boot
+      - GIT_USER_NAME=${GIT_USER_NAME:-}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
       - DOCKER_HOST=tcp://docker-dind:2375   # docker-dind sidecar (plain TCP, internal network only)
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
@@ -98,6 +101,8 @@ services:
       - REDMINE_API_KEY=${REDMINE_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GIT_USER_NAME=${GIT_USER_NAME:-}
+      - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
     mem_limit: ${DSH_MEM_LIMIT:-4g}
     cpus: ${DSH_CPUS:-2}
     restart: unless-stopped

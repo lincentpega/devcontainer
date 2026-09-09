@@ -26,6 +26,31 @@ if [ ! -d "$PROFILE_WEB/node_modules/@deepseek-ai/dsh-subagent-claude-code" ]; t
     dsh plugin --profile web install
 fi
 
+# Boot provisioning from compose env (.env): git identity + glab (GitLab CLI)
+# auth. Runs on every boot: `git config --global` is idempotent, and `glab
+# auth login` is idempotent too, so it self-heals token rotation. glab state
+# lands in $GLAB_CONFIG_DIR (= $HOME/.dsh/glab-cli, inside the ./dsh-config
+# bind mount) and stays out of version control via dsh-config/.gitignore.
+# Failures warn below and never abort the boot.
+if [ -n "${GIT_USER_NAME:-}" ]; then
+    git config --global user.name "${GIT_USER_NAME}" \
+        || echo "[dsh] WARNING: git config user.name failed" >&2
+fi
+if [ -n "${GIT_USER_EMAIL:-}" ]; then
+    git config --global user.email "${GIT_USER_EMAIL}" \
+        || echo "[dsh] WARNING: git config user.email failed" >&2
+fi
+if [ -n "${GITLAB_HOST:-}" ] && [ -n "${GITLAB_TOKEN:-}" ]; then
+    glab_host="${GITLAB_HOST#https://}"
+    glab_host="${glab_host#http://}"
+    if glab auth login --hostname "${glab_host}" --token "${GITLAB_TOKEN}" \
+            </dev/null >/dev/null 2>&1; then
+        echo "[dsh] glab authenticated for ${glab_host}"
+    else
+        echo "[dsh] WARNING: glab auth login failed for ${glab_host}" >&2
+    fi
+fi
+
 if [ -n "${DSH_TRUSTED_HOST:-}" ]; then
     node --expose-internals "${DSH_BIN}" web \
         --host 127.0.0.1 --port 3080 --no-open \
