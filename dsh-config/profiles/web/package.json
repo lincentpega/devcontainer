@@ -1,0 +1,17 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "@deepseek-ai/dsh-subagent-claude-code": "0.1.2-rc.1"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@deepseek-ai/dsh-subagent-claude-code"
+      ],
+      "patchReload": "live"
+    }
+  }
+}

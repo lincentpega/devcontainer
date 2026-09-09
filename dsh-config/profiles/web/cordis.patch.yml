@@ -1,0 +1,25 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+- insert:
+    # Bridge the Redmine MCP server (oxigen.oxinus.holdings) into the harness
+    # so sessions see its tools as mcp__redmine__* (e.g. redmine_request).
+    # Same server definition as the user-level `redmine` entry in
+    # ~/.claude.json, transported through @deepseek-ai/dsh-mcp-client.
+    - id: mcp-redmine
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        serverName: redmine
+        transport: stdio
+        command: uvx
+        args:
+          - '--from'
+          - 'mcp-redmine==2026.01.13.152335'
+          - '--with'
+          - 'mcp<2'
+          - '--refresh-package'
+          - 'mcp-redmine'
+          - 'mcp-redmine'
+        env:
+          REDMINE_URL: !!js process.env.REDMINE_URL
+          REDMINE_API_KEY: !!js process.env.REDMINE_API_KEY

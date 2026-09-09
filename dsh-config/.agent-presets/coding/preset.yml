@@ -1,0 +1,2 @@
+name: Coding
+description: Full coding agent with file editing, shell, file and web search, skills, planning, goals, subagents, and workflows; additionally enables the subagent_claude_code tool so tasks can be delegated to Claude Code subagents (billed to the team subscription).

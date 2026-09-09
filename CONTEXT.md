@@ -14,6 +14,9 @@ workspace and repo configs.
   Entry: `docker compose exec -it -u dev devbox bash` (no SSH).
 - **meridian** — separate service container: Claude Max bridge for pi
   (Agent SDK → Anthropic API on `127.0.0.1:3456` / `meridian:3456`).
+- **dsh** — separate service container: DeepSeek Harness web GUI, ported from
+  the dsh-vps native deployment; DSH home = repo `./dsh-config` mounted at
+  `/home/dev/.dsh`. GUI: `http://127.0.0.1:3080` (loopback-only publish).
 
 ## Architecture
 
@@ -21,8 +24,11 @@ workspace and repo configs.
 host (macOS) ── OrbStack
 ├── devbox        pi → http://meridian:3456 → Claude SDK → Anthropic (Claude Max)
 │                   · nvim/LazyVim · claude (standalone login)
-└── meridian      token via .env (MERIDIAN_PROFILES) · pi-scrub active
-                    · config repo-managed (config/meridian/)
+├── meridian      token via .env (MERIDIAN_PROFILES) · pi-scrub active
+│                   · config repo-managed (config/meridian/)
+└── dsh           DeepSeek Harness web GUI (Node 22 image, VPS-pinned tools)
+                    · DSH home = repo ./dsh-config → /home/dev/.dsh (rw)
+                    · GUI published 127.0.0.1:3080 → container 3080
 
 mounts (all repo-relative, portable):
   ${WORKSPACE:-../}:/workspace:rw      (projects dir — repo's parent by default)
@@ -33,6 +39,7 @@ mounts (all repo-relative, portable):
   ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro   (mouse + extended keys for pi)
   ./config/meridian:/root/.config/meridian:rw
   devbox-home:/home/dev                (state volume: auth, sessions, mason)
+  ./dsh-config:/home/dev/.dsh:rw       (dsh service: DSH home, repo-managed; runtime state gitignored by dsh-config/.gitignore)
 ```
 
 ## Secrets chain (no secrets in git)
@@ -72,6 +79,11 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 - Security envelope: read-only rootfs, cap_drop ALL (+entrypoint chown set: CHOWN,
   DAC_OVERRIDE, FOWNER), no docker.sock, host loopback NOT reachable from
   containers (use `ssh -R` per-port from the box if ever needed)
+- dsh: compose service + `dsh/Dockerfile` added, `./dsh-config` populated from
+  the dsh-vps deployment repo (VPS-pinned toolchain: Node 22, DSH 0.1.2-rc.1,
+  claude-code, mcp-remote, pnpm, uv, glab). NOT yet built/run on this host —
+  verify on first boot: web profile bundles install, launch token from logs,
+  GUI on http://127.0.0.1:3080, Redmine MCP tools present.
 
 ## Gotchas learned (don't re-debug)
 
@@ -111,6 +123,8 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
       - pi-mcp-adapter (host MCPs via ssh -R tunnel, only when needed)
 - [ ] jdtls via mason (Java)
 - [ ] Push from the box (deploy key) — only if trading the host review gate
+- [ ] dsh first boot on the user's machine: build + run, verify GUI token flow
+      and Redmine MCP; add claude-code auth for dsh subagents if needed
 
 ## Key decisions (defaults taken)
 

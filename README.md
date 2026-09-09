@@ -1,8 +1,9 @@
 # devbox
 
-A self-contained dev container for the pi agent, Claude Code, and Meridian
-(Claude Max via the Agent SDK). Everything runs inside the container; the host
-only mounts the workspace and your repo configs.
+A self-contained dev container for the pi agent, Claude Code, Meridian
+(Claude Max via the Agent SDK), and DeepSeek Harness (DSH). Everything runs
+inside the container; the host only mounts the workspace and your repo
+configs.
 
 ## Quick start
 
@@ -34,6 +35,7 @@ host (macOS)                            container (devbox)
 tmux (host-side, optional)              pi (agent)      ← entered via docker exec
 IDE (VS Code Dev Containers)       ◄──► Claude Code
 git push/pull (review loop)             Meridian       127.0.0.1:3456
+Browser → http://127.0.0.1:3080   ◄──►  dsh (DeepSeek Harness)  127.0.0.1:3080
 mounts:                                 nvim + LazyVim + jdtls (via mason)
   ~/Development → /workspace (rw)       tmux
   ~/.config/nvim (ro)                   config/tmux → ~/.tmux.conf (ro, in-box)
@@ -205,6 +207,36 @@ npm install @rynfar/meridian-plugin-pi-scrub
 # then: curl -X POST http://127.0.0.1:3456/plugins/reload  (or restart meridian)
 ```
 
+## DeepSeek Harness (dsh service)
+
+`dsh` is a second compose service: the DeepSeek Harness web GUI, containerized
+from the native systemd deployment that used to run on `dsh-vps`. Its DSH home
+is the repo-managed `dsh-config/` tree (agent presets, skills, the `web`
+profile with the cordis Redmine MCP), bind-mounted at `/home/dev/.dsh` inside
+the container and writable — DSH maintains it at runtime the same way it did
+on the VPS, and its nested `.gitignore` keeps sessions/caches/node_modules out
+of git.
+
+```bash
+docker compose up -d --build dsh   # or plain `docker compose up -d --build`
+# then open http://127.0.0.1:3080  (published loopback-only, never 0.0.0.0)
+```
+
+- The image pins the same toolchain as the VPS: Node.js 22, DSH `0.1.2-rc.1`,
+  Claude Code `2.1.263`, mcp-remote `0.8.3`, pnpm `10.33.2`, uv `0.11.8`,
+  glab `1.116.0`.
+- Secrets come from the host `.env` (never the repo): `DEEPSEEK_API_KEY` is
+  the default agent model key; `REDMINE_URL`/`REDMINE_API_KEY` feed the cordis
+  Redmine MCP profile. See `.env.example`.
+- The service runs as the same `dev` UID as devbox, so agents it spawns write
+  to the shared `/workspace` mount with host ownership.
+- First boot may install the `web` profile bundles into the mounted
+  `dsh-config` (network + a few minutes). The web UI emits a browser launch
+  token in the container logs on each start — grab it with
+  `docker compose logs dsh | sed -n 's/.*token=//p' | tail -1`.
+- `DSH_TRUSTED_HOST` is only needed for non-loopback origins (e.g. a
+  Tailscale URL); plain `http://127.0.0.1:3080` needs none.
+
 ## First-boot checklist
 
 1. Enter the box: `docker compose exec -it -u dev devbox bash` (see above)
@@ -229,6 +261,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 | D8 | pi default | deepseek; Meridian switchable |
 | D9 | web search | official Tavily CLI (apt python3-venv + pip, isolated venv, image-baked) + skills repo-managed in `.agents/skills/` |
 | D12 | workspace | `~/Development` rw |
+| D17 | DeepSeek Harness | containerized `dsh` service (ported from the dsh-vps native deployment); DSH home = repo-managed `./dsh-config` at `/home/dev/.dsh` |
 
 ## Portability
 

@@ -1,0 +1,27 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+llm-pi-ai:
+  providers:
+    # ChatGPT-Plus/Pro Codex subscription route, served through pi-ai's
+    # installed openai-codex catalog (chatgpt.com/backend-api). Auth is the
+    # stored OAuth grant at credential record llm-pi-ai/openai-codex, so no
+    # apiKeyEnv is set; DeepSeek remains the default agent model.
+    openai-codex:
+      displayName: OpenAI Codex (ChatGPT subscription)
+agent-presets:
+  default: coding
+agent-default-model:
+  provider: deepseek-official
+  model: deepseek-v4-flash
+  reasoningEffort: high
+subagent-model-selection:
+  enabled: true
+  allowedModels:
+    - provider: deepseek-official
+      model: deepseek-v4-flash-vision-exp
+    - provider: deepseek-official
+      model: deepseek-v4-flash
+    - provider: openai-codex
+      model: gpt-5.6-luna
+    - provider: openai-codex
+      model: gpt-5.6-terra
