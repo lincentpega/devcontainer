@@ -1,0 +1,42 @@
+@startuml Telecom Antifraud Login Flow
+
+actor "User" as User #E2F0CB
+participant "Mobile App" as MobileApp #C7CEEA
+participant "Baraka API" as BarakaApi #FFDAC1
+participant "Telecom AF" as TelecomAF #E0BBE4
+
+'Request OTP
+User -> MobileApp: Opens application on a new device
+MobileApp -> BarakaApi: POST /api/user/login/send-otp
+BarakaApi -> BarakaApi: Generate OTP, store OTP hash
+BarakaApi -> TelecomAF: POST /api/accounts/v1/sms (templateId = 2)
+TelecomAF --> User: Send OTP via SMS gateway
+BarakaApi --> MobileApp: 200 OK
+MobileApp --> User: Show OTP form
+
+loop until OTP is received
+    User -> MobileApp: Presses "Resend OTP"
+    MobileApp -> BarakaApi: POST /api/user/login/resend-otp
+    BarakaApi -> BarakaApi: Invalidate previous OTP, store new OTP hash
+    BarakaApi -> TelecomAF: POST /api/accounts/v1/sms (templateId = 2)
+end
+
+'Confirm OTP and fraud verdict
+User -> MobileApp: Enters OTP
+MobileApp -> TelecomAF: SDK checkFraud (OTP)
+MobileApp -> BarakaApi: POST /api/user/login/confirm (OTP)
+BarakaApi -> BarakaApi: Validate OTP over stored hash
+BarakaApi -> TelecomAF: POST /api/accounts/v1/check-fraud/{requestId}
+TelecomAF --> BarakaApi: Return verdict
+note left of TelecomAF: Verdict carries verified flag\nand a refusal reason
+
+break verdict.verified == false
+    BarakaApi --> MobileApp: Return error message
+    MobileApp --> User: Show error message, interrupt flow
+end
+
+BarakaApi --> MobileApp: 200 OK
+MobileApp -> MobileApp: Perform face verification with MyID
+MobileApp -> TelecomAF: SDK confirmFace
+
+@enduml
