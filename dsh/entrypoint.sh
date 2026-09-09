@@ -8,8 +8,10 @@
 # remote code execution on the network), so it listens on the container's
 # loopback only. Docker's port publish (docker-proxy) connects to the
 # container's eth0 instead, so a socat relay accepts the published port there
-# and forwards to dsh on loopback. Host-facing exposure stays loopback-only:
-# compose maps 127.0.0.1:${DSH_PORT} -> 3080.
+# and forwards to dsh on loopback. The relay binds the eth0 address — never
+# 0.0.0.0, which would also claim 127.0.0.1 and make dsh's own bind fail
+# with EADDRINUSE. Host-facing exposure stays loopback-only: compose maps
+# 127.0.0.1:${DSH_PORT} -> 3080.
 set -eu
 
 DSH_BIN="$(npm root -g)/@deepseek-ai/dsh/lib/bin.js"
@@ -36,7 +38,8 @@ DSH_PID=$!
 
 trap 'kill "${DSH_PID}" "${SOCAT_PID}" 2>/dev/null || true; exit 143' TERM INT
 
-socat TCP-LISTEN:3080,bind=0.0.0.0,reuseaddr,fork TCP:127.0.0.1:3080 &
+HOST_IP="$(hostname -i | awk '{print $1}')"
+socat "TCP-LISTEN:3080,bind=${HOST_IP},reuseaddr,fork" TCP:127.0.0.1:3080 &
 SOCAT_PID=$!
 
 wait "${DSH_PID}"
