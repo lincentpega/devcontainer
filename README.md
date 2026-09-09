@@ -228,8 +228,12 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
 - Secrets come from the host `.env` (never the repo): `DEEPSEEK_API_KEY` is
   the default agent model key; `REDMINE_URL`/`REDMINE_API_KEY` feed the cordis
   Redmine MCP profile. See `.env.example`.
-- The service runs as the same `dev` UID as devbox, so agents it spawns write
-  to the shared `/workspace` mount with host ownership.
+- **Agent workspace = the whole `dev` home**: dsh starts with cwd `/home/dev`,
+  so agents operate across the home — including the `dsh-config` mount at
+  `.dsh` — plus the projects dir mounted at `/home/dev/workspace` (the host
+  `${WORKSPACE}` dir; `/workspace` is kept as a symlink so old absolute paths
+  still resolve). The service runs as the same `dev` UID as devbox, so agent
+  writes into `/home/dev/workspace` and `dsh-config` keep host ownership.
 - DSH refuses non-loopback binds by design, so inside the container it listens
   on loopback and the entrypoint's socat relay bridges the published port —
   the host-facing publish remains `127.0.0.1` only (see `dsh/entrypoint.sh`).

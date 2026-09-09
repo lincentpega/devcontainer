@@ -70,13 +70,15 @@ services:
   # DeepSeek Harness web service (ported from the dsh-vps native deployment).
   # Its DSH home is the repo-managed ./dsh-config tree, bind-mounted at
   # /home/dev/.dsh and writable so DSH can maintain it (profiles, sessions —
-  # all gitignored by dsh-config/.gitignore). DSH refuses non-loopback binds,
-  # so inside the container it listens on loopback and the entrypoint's socat
-  # relay bridges the published port (see dsh/entrypoint.sh). Published
-  # loopback-only: the GUI is reachable at http://127.0.0.1:3080 on the host,
-  # never on 0.0.0.0 — same exposure as the VPS listener. Runs as the same
-  # `dev` UID as devbox, so agent writes to the shared /workspace mount keep
-  # host ownership.
+  # all gitignored by dsh-config/.gitignore). The agent workspace is the whole
+  # /home/dev home: dsh starts with cwd /home/dev, and the host projects dir
+  # (${WORKSPACE}) is mounted at /home/dev/workspace inside it. DSH refuses
+  # non-loopback binds, so inside the container it listens on loopback and the
+  # entrypoint's socat relay bridges the published port (see dsh/entrypoint.sh).
+  # Published loopback-only: the GUI is reachable at http://127.0.0.1:3080 on
+  # the host, never on 0.0.0.0 — same exposure as the VPS listener. Runs as
+  # the same `dev` UID as devbox, so agent writes into /home/dev/workspace
+  # (and dsh-config) keep host ownership.
   dsh:
     build:
       context: ./dsh
@@ -86,8 +88,8 @@ services:
     ports:
       - "127.0.0.1:${DSH_PORT:-3080}:3080"
     volumes:
-      - ./dsh-config:/home/dev/.dsh:rw          # versioned DSH home (repo)
-      - ${WORKSPACE:-../}:/workspace:rw          # same workspace mount as devbox
+      - ./dsh-config:/home/dev/.dsh:rw           # versioned DSH home (repo)
+      - ${WORKSPACE:-../}:/home/dev/workspace:rw # host projects dir, mounted inside the dev home — the whole /home/dev is the agent workspace
     environment:
       - DSH_PERMISSION_MODE=${DSH_PERMISSION_MODE:-workspace-write}
       - DSH_TRUSTED_HOST=${DSH_TRUSTED_HOST:-}

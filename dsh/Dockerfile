@@ -76,6 +76,12 @@ ENV HOME=/home/dev \
 # ---------------------------------------------------------------------------
 RUN useradd -m -u ${USER_UID} -s /bin/bash ${USERNAME}
 
+# dsh's agent workspace is the web process cwd, so the whole dev home is the
+# workspace: the ./dsh-config mount lands at /home/dev/.dsh and compose mounts
+# the host projects dir at /home/dev/workspace. /workspace is kept as a
+# symlink so absolute paths written for the old layout still resolve.
+RUN ln -sfn /home/dev/workspace /workspace
+
 # ---------------------------------------------------------------------------
 # Entrypoint
 # ---------------------------------------------------------------------------
@@ -83,6 +89,6 @@ COPY entrypoint.sh /usr/local/bin/dsh-entrypoint
 RUN chmod +x /usr/local/bin/dsh-entrypoint
 
 USER ${USERNAME}
-WORKDIR /workspace
+WORKDIR /home/dev
 
 ENTRYPOINT ["/usr/local/bin/dsh-entrypoint"]

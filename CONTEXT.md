@@ -28,7 +28,9 @@ host (macOS) ── OrbStack
 │                   · config repo-managed (config/meridian/)
 └── dsh           DeepSeek Harness web GUI (Node 22 image, VPS-pinned tools)
                     · DSH home = repo ./dsh-config → /home/dev/.dsh (rw)
-                    · GUI published 127.0.0.1:3080 → container 3080
+                    · agent workspace = whole /home/dev (cwd); projects mount
+                      ${WORKSPACE} → /home/dev/workspace (rw); /workspace symlink
+                    · GUI published 127.0.0.1:3080 → container 3080 (via socat)
 
 mounts (all repo-relative, portable):
   ${WORKSPACE:-../}:/workspace:rw      (projects dir — repo's parent by default)
@@ -40,6 +42,7 @@ mounts (all repo-relative, portable):
   ./config/meridian:/root/.config/meridian:rw
   devbox-home:/home/dev                (state volume: auth, sessions, mason)
   ./dsh-config:/home/dev/.dsh:rw       (dsh service: DSH home, repo-managed; runtime state gitignored by dsh-config/.gitignore)
+  ${WORKSPACE:-../}:/home/dev/workspace:rw  (dsh service: host projects dir inside the dev home — whole /home/dev is the agent workspace; /workspace is a symlink to it in the image)
 ```
 
 ## Secrets chain (no secrets in git)
