@@ -1,5 +1,6 @@
 #!/bin/sh
-# dsh entrypoint: start the DeepSeek Harness web service.
+# dsh entrypoint: install the web profile's plugin bundles, then start the
+# DeepSeek Harness web service.
 # Mirrors the VPS unit's ExecStart:
 #   node --expose-internals .../dsh/lib/bin.js web \
 #     --host 127.0.0.1 --port 3080 --no-open [--trusted-host $DSH_TRUSTED_HOST]
@@ -9,6 +10,16 @@ set -eu
 
 DSH_BIN="$(npm root -g)/@deepseek-ai/dsh/lib/bin.js"
 PORT="${DSH_PORT:-3080}"
+
+# DSH does not install a profile's plugin bundles itself: boot aborts with
+# "cannot resolve profile bundle ..." unless they are present in the profile
+# dir. profiles/web declares @deepseek-ai/dsh-subagent-claude-code; install it
+# on first boot (network + pnpm fetch), skip once node_modules is there.
+PROFILE_WEB="$HOME/.dsh/profiles/web"
+if [ ! -d "$PROFILE_WEB/node_modules/@deepseek-ai/dsh-subagent-claude-code" ]; then
+    echo "[dsh] installing web profile bundles (first boot)..."
+    dsh plugin --profile web install
+fi
 
 if [ -n "${DSH_TRUSTED_HOST:-}" ]; then
     exec node --expose-internals "${DSH_BIN}" web \

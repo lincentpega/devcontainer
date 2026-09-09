@@ -81,9 +81,12 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
   containers (use `ssh -R` per-port from the box if ever needed)
 - dsh: compose service + `dsh/Dockerfile` added, `./dsh-config` populated from
   the dsh-vps deployment repo (VPS-pinned toolchain: Node 22, DSH 0.1.2-rc.1,
-  claude-code, mcp-remote, pnpm, uv, glab). NOT yet built/run on this host —
-  verify on first boot: web profile bundles install, launch token from logs,
-  GUI on http://127.0.0.1:3080, Redmine MCP tools present.
+  claude-code, mcp-remote, pnpm, uv, glab). Entrypoint auto-installs the web
+  profile bundles on first boot (`dsh plugin --profile web install` when
+  `profiles/web/node_modules/@deepseek-ai/dsh-subagent-claude-code` is
+  missing — DSH does NOT self-install them). Verified running on the VPS
+  devcontainer clone at 127.0.0.1:3080 (Redmine MCP up); pnpm store lands
+  under dsh-config/data (gitignored).
 
 ## Gotchas learned (don't re-debug)
 
@@ -123,8 +126,8 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
       - pi-mcp-adapter (host MCPs via ssh -R tunnel, only when needed)
 - [ ] jdtls via mason (Java)
 - [ ] Push from the box (deploy key) — only if trading the host review gate
-- [ ] dsh first boot on the user's machine: build + run, verify GUI token flow
-      and Redmine MCP; add claude-code auth for dsh subagents if needed
+- [ ] dsh: verify the entrypoint auto-install path on a truly fresh clone
+      (VPS verified via the manual install + skip path after rebuild)
 
 ## Key decisions (defaults taken)
 

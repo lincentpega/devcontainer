@@ -230,9 +230,11 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
   Redmine MCP profile. See `.env.example`.
 - The service runs as the same `dev` UID as devbox, so agents it spawns write
   to the shared `/workspace` mount with host ownership.
-- First boot may install the `web` profile bundles into the mounted
-  `dsh-config` (network + a few minutes). The web UI emits a browser launch
-  token in the container logs on each start — grab it with
+- First boot auto-installs the `web` profile bundles into the mounted
+  `dsh-config` (the entrypoint runs `dsh plugin --profile web install` when
+  they are missing — DSH does not install them itself; needs network once,
+  then it is a no-op). The web UI emits a browser launch token in the
+  container logs on each start — grab it with
   `docker compose logs dsh | sed -n 's/.*token=//p' | tail -1`.
 - `DSH_TRUSTED_HOST` is only needed for non-loopback origins (e.g. a
   Tailscale URL); plain `http://127.0.0.1:3080` needs none.
