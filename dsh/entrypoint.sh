@@ -1,11 +1,12 @@
 #!/bin/sh
 # dsh entrypoint: install the web profile's plugin bundles, then start the
 # DeepSeek Harness web service.
-# Mirrors the VPS unit's ExecStart:
-#   node --expose-internals .../dsh/lib/bin.js web \
-#     --host 127.0.0.1 --port 3080 --no-open [--trusted-host $DSH_TRUSTED_HOST]
-# Container-local loopback only; compose publishes 127.0.0.1:${DSH_PORT} on the
-# host. --trusted-host is passed only when set — loopback origins need none.
+# Mirrors the VPS unit's ExecStart, adapted for Docker: the web app binds
+# 0.0.0.0 *inside* the container because compose's port publish (docker-proxy)
+# connects to the container's eth0, not its loopback — a 127.0.0.1 bind is
+# unreachable through the publish. The host-facing side stays loopback-only:
+# compose maps 127.0.0.1:${DSH_PORT} → 3080, so the GUI is never on 0.0.0.0.
+# --trusted-host is passed only when set — loopback origins need none.
 set -eu
 
 DSH_BIN="$(npm root -g)/@deepseek-ai/dsh/lib/bin.js"
@@ -23,9 +24,9 @@ fi
 
 if [ -n "${DSH_TRUSTED_HOST:-}" ]; then
     exec node --expose-internals "${DSH_BIN}" web \
-        --host 127.0.0.1 --port "${PORT}" --no-open \
+        --host 0.0.0.0 --port "${PORT}" --no-open \
         --trusted-host "${DSH_TRUSTED_HOST}"
 fi
 
 exec node --expose-internals "${DSH_BIN}" web \
-    --host 127.0.0.1 --port "${PORT}" --no-open
+    --host 0.0.0.0 --port "${PORT}" --no-open
