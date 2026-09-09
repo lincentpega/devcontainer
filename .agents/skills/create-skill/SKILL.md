@@ -41,7 +41,8 @@ When authoring or editing a skill, keep everything lean:
 
 - **`disable-model-invocation: true`** in frontmatter hides the skill from the
   system prompt; users must invoke it explicitly via `/skill:name`.
-- **Discovery:** `~/.pi/agent/skills/` (global), `.pi/skills/` (project, after
+- **Discovery:** `~/.pi/agent/skills/` and `~/.agents/skills/` (user/global,
+  always trusted), `.pi/skills/` and `.agents/skills/` (project, after
   trust), packages, settings `skills` array, `--skill` flag. Directories
   containing `SKILL.md` are discovered recursively; root `.md` files with valid
   frontmatter count as skills too. `/skill:name` forces loading; args after the
@@ -64,8 +65,8 @@ When authoring or editing a skill, keep everything lean:
 
 - Keep SKILL.md focused on usage; push depth into `references/`.
 - Prefer skills over one-off scripts in random paths: skills are the portable,
-  self-contained unit and (in this devcontainer) `~/.pi/agent/skills/` is a
-  persistent repo mount.
+  self-contained unit and (in this devcontainer) `~/.agents/skills/` is a
+  repo mount of `.agents/skills/` — persistent and versioned.
 - For any persistent config, prefer repo-mounted paths (e.g. `~/.pi/agent`,
   `~/.config/nvim`) so changes are versioned and survive container recreation.
 - Model behavior on pi's examples: see the `brave-search` example in

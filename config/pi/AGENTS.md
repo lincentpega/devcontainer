@@ -13,10 +13,16 @@ You are running inside the **devbox** devcontainer (Ubuntu 24.04).
   but is **lost on `docker compose down -v` or a fresh machine**. Don't put
   anything important there that isn't reproducible.
 - **`/tmp` and `/run` are tmpfs** — wiped on restart; scratch space only.
-- **`~/.pi/agent` is a repo mount** — skills and settings there are versioned
+- **`~/.pi/agent` is a repo mount** — pi settings/AGENTS.md there are versioned
   and survive everything.
-- Entry is SSH (`dev@localhost -p 2222`); compose env vars are surfaced in
-  `~/.devbox-env` (sourced from `.bashrc`).
+- **Skills live in the repo's canonical `.agents/skills/`** — mounted at
+  `~/.agents/skills/` (pi, every session) and `~/.claude/skills/` (Claude
+  Code, every session/project), plus the repo's `.claude/skills` symlink;
+  all versioned.
+- Entry is `docker compose exec -it -u dev devbox bash` (from the repo dir on
+  the host; VS Code Dev Containers / the pi harness do the same). No SSH.
+  Compose env vars (`TAVILY_API_KEY`, `DEEPSEEK_API_KEY`, …) are inherited
+  directly by exec'd shells — there is no `~/.devbox-env` anymore.
 
 ## For details
 

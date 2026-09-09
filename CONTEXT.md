@@ -11,7 +11,7 @@ workspace and repo configs.
 
 - **devbox** — the working environment: pi (agent), LazyVim + jdtls, Claude Code,
   Node 24, JDK 21, official Tavily CLI (`tvly`) + Agent Skills for web search.
-  Entry: `ssh -p 2222 dev@localhost` (alias `ssh devbox`).
+  Entry: `docker compose exec -it -u dev devbox bash` (no SSH).
 - **meridian** — separate service container: Claude Max bridge for pi
   (Agent SDK → Anthropic API on `127.0.0.1:3456` / `meridian:3456`).
 
@@ -20,7 +20,7 @@ workspace and repo configs.
 ```
 host (macOS) ── OrbStack
 ├── devbox        pi → http://meridian:3456 → Claude SDK → Anthropic (Claude Max)
-│                   · sshd (2222) · nvim/LazyVim · claude (standalone login)
+│                   · nvim/LazyVim · claude (standalone login)
 └── meridian      token via .env (MERIDIAN_PROFILES) · pi-scrub active
                     · config repo-managed (config/meridian/)
 
@@ -28,6 +28,8 @@ mounts (all repo-relative, portable):
   ${WORKSPACE:-../}:/workspace:rw      (projects dir — repo's parent by default)
   ./config/nvim:/home/dev/.config/nvim:ro
   ./config/pi:/home/dev/.pi/agent:rw   (pi can self-improve; state gitignored)
+  ./.agents/skills:/home/dev/.agents/skills:rw   (canonical skill tree — pi global)
+  ./.agents/skills:/home/dev/.claude/skills:rw   (same tree — claude user skills, every session/project)
   ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro   (mouse + extended keys for pi)
   ./config/meridian:/root/.config/meridian:rw
   devbox-home:/home/dev                (state volume: auth, sessions, mason)
@@ -37,7 +39,7 @@ mounts (all repo-relative, portable):
 
 ```
 .env (gitignored) → compose environment → container env
-  → devbox: entrypoint writes ~/.devbox-env (sshd strips env from ssh sessions)
+  → devbox: no sshd — compose env is inherited directly by exec'd shells
   → meridian: MERIDIAN_PROFILES=[{"id":"default","oauthToken":"${CLAUDE_OAUTH_TOKEN}"}]
 ```
 - `.githooks/pre-commit` runs containerized gitleaks (`zricethezav/gitleaks`) +
@@ -48,7 +50,7 @@ mounts (all repo-relative, portable):
 ## Daily use
 
 ```bash
-ssh devbox                    # or: ssh -p 2222 dev@localhost
+docker compose exec -it -u dev devbox bash
 pi                            # agent; /model → anthropic = Claude Max via meridian
 nvim                          # LazyVim (java/vague/example plugins); :MasonInstall jdtls
 git push/pull on HOST         # review loop — the box proposes, host publishes
@@ -61,21 +63,26 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 - End-to-end pi → meridian → Claude Max: verified (minimal request returned)
 - Tavily: official CLI `tvly` 0.1.6 (PyPI tavily-cli, apt python3-venv + pip
   into an isolated /opt/tavily venv) baked into the image; 8 Tavily Agent
-  Skills repo-managed at `config/pi/skills/` (mounted `~/.pi/agent/skills/`,
-  discovered by pi). CLI/install verified in the live box; auth NOT configured
+  Skills repo-managed at `.agents/skills/` (canonical tree — mounted
+  `~/.agents/skills/` for pi and `~/.claude/skills` for Claude Code; repo
+  `.claude/skills` symlink for project work).
+  CLI/install verified in the live box; auth NOT configured
   yet — run `tvly login` in the box once (credentials persist in `~/.tavily`
   on the home volume).
-- Security envelope: read-only rootfs, cap_drop ALL (+bootstrap set), no docker.sock,
-  host loopback NOT reachable from containers (use `ssh -R` per-port if ever needed)
+- Security envelope: read-only rootfs, cap_drop ALL (+entrypoint chown set: CHOWN,
+  DAC_OVERRIDE, FOWNER), no docker.sock, host loopback NOT reachable from
+  containers (use `ssh -R` per-port from the box if ever needed)
 
 ## Gotchas learned (don't re-debug)
 
-1. `cap_drop: ALL` breaks sshd sandbox → add back `NET_BIND_SERVICE, CHOWN,
-   DAC_OVERRIDE, FOWNER, SYS_CHROOT, SETGID, SETUID`
+1. `cap_drop: ALL` — the entrypoint's boot chown of root-owned home-volume
+   entries needs `CHOWN, DAC_OVERRIDE, FOWNER`; nothing else (no sshd sandbox
+   anymore)
 2. compose `seccomp=default` is parsed as a file path — omit it (daemon default)
 3. npm `--ignore-scripts` skips claude-code's native binary postinstall — pi
    keeps `--ignore-scripts`, claude/meridian do NOT
-4. sshd strips process env from ssh sessions → entrypoint writes `~/.devbox-env`
+4. no sshd → no env stripping: `docker compose exec` inherits compose
+   `environment:` directly (no `~/.devbox-env`)
 5. meridian in node:24-slim needs `/etc/machine-id` (absent → 500
    "cannot capture lock owner process incarnation") — baked in image
 6. lazygit isn't packaged in Ubuntu 24.04 — install the official binary
@@ -109,4 +116,4 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 
 tmux host-side (config repo-managed at config/tmux/, mounted ~/.tmux.conf) · deploy keys (no ~/.ssh mount) · user `dev` (UID 501) ·
 JDK 21 · Node 24 · meridian container-local → now own service · workspace =
-repo parent · configs repo-managed · secrets .env-only · gitleaks containerized
+repo parent · configs repo-managed · skills canonical in `.agents/skills/` (pi + claude mounted `~/.agents/skills` / `~/.claude/skills`; repo `.claude/skills` symlink) · secrets .env-only · gitleaks containerized

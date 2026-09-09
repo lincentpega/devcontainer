@@ -17,16 +17,15 @@ services:
         condition: service_started
       docker-dind:
         condition: service_started
-    ports:
-      - "127.0.0.1:2222:22"      # ssh — loopback-only entry point
     volumes:
       # All paths are relative to this repo (compose resolves them against the
       # compose file's directory) — portable across machines.
       - ${WORKSPACE:-../}:/workspace:rw              # projects dir (repo's parent by default; override in .env)
       - ./config/nvim:/home/dev/.config/nvim:rw      # LazyVim config (repo) — rw so :Lazy update writes lazy-lock.json into the repo
       - ./config/pi:/home/dev/.pi/agent:rw          # pi config dir (repo) — pi can self-improve
+      - ./.agents/skills:/home/dev/.agents/skills:rw  # canonical skill tree (repo) — pi global ~/.agents/skills
+      - ./.agents/skills:/home/dev/.claude/skills:rw  # same tree — Claude Code user skills, available in every session/project
       - ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro  # tmux config (repo) — mouse + extended keys for pi
-      - ${SSH_AUTHORIZED_KEYS:-$HOME/.ssh/devbox_authorized_keys}:/auth/authorized_keys:ro  # pubkeys only — entrypoint installs them for `dev`
       - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
     environment:
       - COLORTERM=truecolor
@@ -35,6 +34,11 @@ services:
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
       - DOCKER_HOST=tcp://docker-dind:2375   # docker-dind sidecar (plain TCP, internal network only)
+      - LANG=C.UTF-8
+      - LC_ALL=C.UTF-8
+      - LANGUAGE=C.UTF-8
+      - COLORTERM=truecolor
+      - CLAUDE_CODE_TMUX_TRUECOLOR="1"
     tmpfs:
       - /tmp
       - /run
@@ -42,13 +46,9 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - NET_BIND_SERVICE   # sshd binds port 22 (<1024)
       - CHOWN              # entrypoint: home ownership
-      - DAC_OVERRIDE       # entrypoint: write into dev's home volume
+      - DAC_OVERRIDE       # entrypoint: walk/stat dev's home volume
       - FOWNER             # entrypoint: chown semantics
-      - SYS_CHROOT          # sshd preauth sandbox (chroot into /run/sshd)
-      - SETGID              # sshd sandbox: setgroups/setgid
-      - SETUID              # sshd sandbox: drop to nobody for preauth
     mem_limit: ${DEVBOX_MEM_LIMIT:-6g}   # +2g headroom for the test JVM running Testcontainers-based ITs
     cpus: ${DEVBOX_CPUS:-3}
     restart: unless-stopped

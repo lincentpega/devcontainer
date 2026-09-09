@@ -9,5 +9,8 @@ config/pi/mcp-onboarding.json
 config/pi/npm/
 # Archived skills are byte-identical to git history (HEAD) — redundant local copy
 config/pi/skills-archive/
+# Claude Code writes internal state (.system/) into skills dirs — keep it out of
+# the shared .agents/skills tree (visible to all tools via the mounts/symlinks)
+.agents/skills/.system/
 .DS_Store
 config/meridian/profiles/

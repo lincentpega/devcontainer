@@ -65,7 +65,7 @@ Convert **once at ingestion**; the md is the artifact, originals stay on the hos
 
 ## Teaching pi
 
-Skill `knowledge-base` (draft: `config/pi/skills/knowledge-base/SKILL.md`) encodes the consult + write rules. Pi never publishes — drafts only, promotion is yours. Optional thin AGENTS.md pointers in project roots. Everything else (skill refinement, ingest, INDEX, migration) pi does under this contract.
+Skill `knowledge-base` (draft: `.agents/skills/knowledge-base/SKILL.md`) encodes the consult + write rules. Pi never publishes — drafts only, promotion is yours. Optional thin AGENTS.md pointers in project roots. Everything else (skill refinement, ingest, INDEX, migration) pi does under this contract.
 
 ## Measuring (not vibes)
 

@@ -6,7 +6,10 @@ FROM ubuntu:24.04
 ARG TARGETARCH
 ARG USERNAME=dev
 ARG USER_UID=501
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    EDITOR=nvim \
+    VISUAL=nvim \
+    JAVA_HOME=/opt/jdk-25
 
 # ---------------------------------------------------------------------------
 # Base packages
@@ -14,7 +17,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget git build-essential unzip jq python3 \
         python3-pip python3-venv \
-        openssh-server tmux ripgrep fd-find fzf gh \
+        tmux ripgrep fd-find fzf gh \
         openjdk-21-jdk-headless \
     && rm -rf /var/lib/apt/lists/*
 
@@ -52,7 +55,7 @@ RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo arm64 || echo x86_64) \
 # ---------------------------------------------------------------------------
 # pi installs with --ignore-scripts (its README requires it);
 # claude-code and meridian MUST run their postinstalls (native binary).
-RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.0
+RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
 RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
 
 # ---------------------------------------------------------------------------
@@ -148,18 +151,6 @@ COPY config/terminfo/ /usr/share/terminfo/
 # by the same UID on both sides)
 # ---------------------------------------------------------------------------
 RUN useradd -m -u ${USER_UID} -s /bin/bash ${USERNAME}
-
-# SSH host keys baked at build time (rootfs is read-only at runtime)
-RUN ssh-keygen -A
-
-# Public-key auth only. `dev` has no password, so a password prompt can never
-# succeed — refuse the attempt outright instead of hiding a missing
-# /auth/authorized_keys behind an unanswerable prompt.
-RUN printf '%s\n' \
-        'PasswordAuthentication no' \
-        'KbdInteractiveAuthentication no' \
-        'PermitRootLogin no' \
-        > /etc/ssh/sshd_config.d/devbox.conf
 
 # ---------------------------------------------------------------------------
 # Entrypoint

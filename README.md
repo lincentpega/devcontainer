@@ -2,19 +2,21 @@
 
 A self-contained dev container for the pi agent, Claude Code, and Meridian
 (Claude Max via the Agent SDK). Everything runs inside the container; the host
-only mounts the workspace and your public keys.
+only mounts the workspace and your repo configs.
 
 ## Quick start
 
 ```bash
 orb start                      # start OrbStack (Docker daemon)
 docker compose up -d --build   # build + start devbox
-ssh devbox                     # land in the box (see "SSH access" below)
+docker compose exec -it -u dev devbox bash   # land in the box (see "Entering the box" below)
 ```
 
 Web search works out of the box: the image bakes the official Tavily CLI
-(`tvly`) and the Tavily Agent Skills live in the repo at `config/pi/skills/`
-(mounted `~/.pi/agent/skills/`). Authenticate once (see below).
+(`tvly`) and the Agent Skills live in the repo's canonical skill tree at
+`.agents/skills/` — mounted `~/.agents/skills/` for pi and `~/.claude/skills/`
+for Claude Code (available in every session/project); the repo `.claude/skills`
+symlink also covers project work. Authenticate once (see below).
 
 Destroy and rebuild for a fresh, identical environment (project files live on
 the host mount, so they survive):
@@ -29,14 +31,12 @@ docker compose up -d --build
 ```
 host (macOS)                            container (devbox)
 ────────────────────────                ─────────────────────────────
-tmux (host-side, optional)              sshd           ← entry point :2222
-IDE (VS Code Remote / JetBrains)   ◄──► pi (agent)
-git push/pull (review loop)             Claude Code
-                                        Meridian       127.0.0.1:3456
+tmux (host-side, optional)              pi (agent)      ← entered via docker exec
+IDE (VS Code Dev Containers)       ◄──► Claude Code
+git push/pull (review loop)             Meridian       127.0.0.1:3456
 mounts:                                 nvim + LazyVim + jdtls (via mason)
   ~/Development → /workspace (rw)       tmux
   ~/.config/nvim (ro)                   config/tmux → ~/.tmux.conf (ro, in-box)
-  ~/.ssh/devbox_authorized_keys (ro, pubkeys only)
 ```
 
 - The **agent cannot reach anything that isn't mounted or loopback-bound** in
@@ -47,19 +47,18 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
 ## Security envelope
 
 - read-only rootfs (`/tmp`, `/run` = tmpfs; `/home/dev` = volume)
-- `cap_drop: ALL`, with the minimal bootstrap set added back for sshd and the
-  entrypoint: `NET_BIND_SERVICE`, `CHOWN`, `DAC_OVERRIDE`, `FOWNER`,
-  `SYS_CHROOT`, `SETGID`, `SETUID`
+- `cap_drop: ALL`, with only the entrypoint's home-ownership set added back:
+  `CHOWN`, `DAC_OVERRIDE`, `FOWNER`
 - seccomp: Docker daemon default
 - no docker.sock, no privileged mode
-- you log in as `dev` (non-root); sshd runs as root by necessity
+- you log in as `dev` (non-root); the entrypoint runs as root by necessity
 - host loopback services are **not** reachable from the container — if you ever
-  need a host MCP server, use a narrow `ssh -R` tunnel (one port), not
-  `host.docker.internal`
+  need a host MCP server, use a narrow `ssh -R` tunnel from the box (one port),
+  not `host.docker.internal`
 
 ## Daily use
 
-- **Agent**: `ssh -p 2222 dev@localhost` → `pi`
+- **Agent**: `docker compose exec -it -u dev devbox bash` → `pi`
 - **Edit**: nvim with your LazyVim config (managed in-container; update via
   tar pipe, e.g. `tar -C ~/.config -xzf -`). Language servers via
   `:MasonInstall jdtls` (or your stack).
@@ -72,39 +71,31 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
 - **Web search (Tavily)**: the official CLI (`tvly` 0.1.6, PyPI `tavily-cli`,
   pip-installed into an isolated venv at build time) plus 8 Tavily Agent
   Skills (`tavily-search`, `tavily-extract`, `tavily-map`, `tavily-crawl`,
-  `tavily-research`, …). Skills are repo-managed at `config/pi/skills/`
-  (mounted `~/.pi/agent/skills/`, discovered by pi). Ask pi to "search the
-  web" — it routes via the `tavily-search` skill. Raw CLI: `tvly search "..."`.
+  `tavily-research`, …). Skills are repo-managed at `.agents/skills/`
+  (mounted `~/.agents/skills/`, discovered by pi). Ask pi to "search the
+  web" — it routes via the `web-search` skill. Raw CLI: `tvly search "..."`.
 
-## SSH access (one-time, on the host)
+## Entering the box
 
-The box accepts **public-key auth only** — `dev` has no password, so a
-password prompt means no key reached sshd. Keys come from a dedicated file,
-not the host's own `~/.ssh/authorized_keys`, so nothing that can log into the
-devbox can log into the Mac:
+There is **no SSH server** — the devbox is entered with `docker compose exec`
+from the host (run in the repo dir):
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/devbox_key -C devbox
-cp ~/.ssh/devbox_key.pub ~/.ssh/devbox_authorized_keys
-docker compose up -d --force-recreate devbox
+docker compose exec -it -u dev devbox bash
 ```
 
-Override the path with `SSH_AUTHORIZED_KEYS` in `.env` to use a different
-file. Add to `~/.ssh/config` so plain `ssh devbox` works — host keys are baked
-at image build time and rotate on every rebuild, hence the relaxed checking on
-this loopback-only host:
+VS Code Dev Containers opens the same way via `devcontainer.json` (compose
+service `devbox`, user `dev`). Prefer tmux for long sessions: run the exec
+from a host-side tmux pane (below), or run tmux inside the box.
 
+Optional host alias:
+
+```bash
+alias devbox='docker compose exec -it -u dev devbox bash'
 ```
-Host devbox
-  HostName localhost
-  Port 2222
-  User dev
-  IdentityFile ~/.ssh/devbox_key
-  IdentitiesOnly yes
-  StrictHostKeyChecking no
-  UserKnownHostsFile /dev/null
-  LogLevel ERROR
-```
+
+Note: removing sshd does **not** affect git — the box keeps its ssh *client*
+(deploy keys in `~/.ssh`) for pushing to remotes.
 
 ## Tavily auth (one-time, in the box)
 
@@ -112,7 +103,8 @@ Credentials live in `~/.tavily/config.json` on the `devbox-home` volume, so
 they survive rebuilds — only authenticate once per box:
 
 ```bash
-ssh devbox
+docker compose exec -it -u dev devbox bash
+# then, inside the box:
 tvly login          # browser OAuth (needs your host browser)
 # or, headless:  tvly login --api-key tvly-...
 tvly auth --json    # verify -> {"authenticated": true}
@@ -144,8 +136,8 @@ wheel scrolls tmux's scrollback instead (copy mode: `prefix + [`).
 
 D1 runs tmux host-side: apply the same file to the host
 (`cp config/tmux/tmux.conf ~/.tmux.conf` — it's version-guarded and works on
-any tmux ≥ 3.2) and ssh into the box from a tmux pane. Restart tmux fully
-(`tmux kill-server && tmux`) after changing it.
+any tmux ≥ 3.2) and run `docker compose exec -it -u dev devbox bash` from a
+tmux pane. Restart tmux fully (`tmux kill-server && tmux`) after changing it.
 
 ### Clipboard exchange (tmux buffer <-> system clipboard)
 
@@ -154,9 +146,10 @@ with the host clipboard via **OSC 52**:
 
 - copy in tmux copy-mode (`prefix + [`, select, `y`) → tmux buffer **and** host
   clipboard (`prefix + ]` pastes the tmux buffer, Cmd+V the host clipboard);
-- nvim yanks/paste use nvim's tmux clipboard provider (`load-buffer -w` /
-  `refresh-client -l`) — `config/nvim/lua/config/options.lua` sets
-  `clipboard = "unnamedplus"` (LazyVim disables it over SSH by default).
+- nvim yanks/paste reach the host clipboard via OSC 52 (relayed by tmux) —
+  `config/nvim/lua/config/options.lua` sets `clipboard = "unnamedplus"`
+  (kept enabled: LazyVim's SSH_CONNECTION special-case never fires in exec'd
+  sessions).
 
 Requirements:
 
@@ -168,7 +161,7 @@ Requirements:
   `xterm*`, which covers Ghostty) and run with `set-clipboard` on/external.
 
 If tmux runs host-side on D1, the same tmux.conf applies there; nvim always
-runs inside the box (its OSC 52 crosses the SSH session either way).
+runs inside the box (its OSC 52 crosses the docker exec session either way).
 
 ## Pi + Meridian wiring (one-time)
 
@@ -214,7 +207,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 
 ## First-boot checklist
 
-1. SSH access: `~/.ssh/devbox_authorized_keys` + `Host devbox` (see above)
+1. Enter the box: `docker compose exec -it -u dev devbox bash` (see above)
 2. `claude login` (OAuth — persists in the `devbox-home` volume)
 3. `meridian` (binds 127.0.0.1:3456, container-local)
 4. add pi provider override (above)
@@ -226,7 +219,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 
 | # | Decision | Value |
 |---|---|---|
-| D1 | tmux | host-side (A) — ssh pane into the box; config repo-managed at `config/tmux/tmux.conf` (mounted `~/.tmux.conf` in-box, same file usable host-side) |
+| D1 | tmux | host-side (A) — `docker compose exec` pane into the box; config repo-managed at `config/tmux/tmux.conf` (mounted `~/.tmux.conf` in-box, same file usable host-side) |
 | D2 | git access | dedicated deploy keys |
 | D3 | username | `dev` (UID 501 = host user) |
 | D4 | JDK | 21 LTS |
@@ -234,7 +227,7 @@ npm install @rynfar/meridian-plugin-pi-scrub
 | D6 | Meridian | container-local |
 | D7 | auth | interactive `claude login` |
 | D8 | pi default | deepseek; Meridian switchable |
-| D9 | web search | official Tavily CLI (apt python3-venv + pip, isolated venv, image-baked) + skills repo-managed in `config/pi/skills/` |
+| D9 | web search | official Tavily CLI (apt python3-venv + pip, isolated venv, image-baked) + skills repo-managed in `.agents/skills/` |
 | D12 | workspace | `~/Development` rw |
 
 ## Portability

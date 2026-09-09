@@ -25,16 +25,18 @@ survive a container restart/rebuild.
   rebuild, but is **lost on `docker compose down -v` or a fresh machine**.
   Do not put anything important here that isn't reproducible.
 - **`/tmp` and `/run` are tmpfs** — wiped on restart. Scratch space only.
-- **Entry point is SSH** (`dev@localhost -p 2222`). Compose env vars
-  (`TAVILY_API_KEY`, `DEEPSEEK_API_KEY`, `GITLAB_HOST`, `GITLAB_TOKEN`) are
-  written to `~/.devbox-env`, sourced from `.bashrc`.
+- **Entry point is `docker compose exec`** (from the repo dir on the host: `docker
+  compose exec -it -u dev devbox bash`; VS Code Dev Containers / the pi harness
+  do the same). No SSH server. Compose env vars (`TAVILY_API_KEY`,
+  `DEEPSEEK_API_KEY`, `GITLAB_HOST`, `GITLAB_TOKEN`, `DOCKER_HOST`) are
+  inherited directly by exec'd shells — no `~/.devbox-env` file.
 
 ## What survives what
 
 | Storage | Restart | Rebuild | down -v / fresh |
 |---------|---------|---------|-----------------|
 | `/workspace/**` (projects) — bind mount | ✅ | ✅ | ✅ |
-| Repo-mounted configs (`~/.pi/agent`, `~/.config/nvim`, `~/.tmux.conf`) | ✅ | ✅ | ✅ |
+| Repo-mounted configs & skills (`~/.pi/agent`, `~/.agents/skills`, `~/.claude/skills`, `~/.config/nvim`, `~/.tmux.conf`) | ✅ | ✅ | ✅ |
 | Home volume (`~/.local/**`, `~/.tavily`, `~/.claude`, sessions) | ✅ | ✅ | ❌ |
 | Image layer (`/usr/local/bin`, `/opt`) | ✅ | ❌* | ✅ |
 | tmpfs (`/tmp`, `/run`) | ❌ | ❌ | ❌ |
@@ -45,10 +47,11 @@ survive a container restart/rebuild.
 ## How to persist new things
 
 1. **A skill / skill tooling** → see the `create-skill` skill for structure
-   and conventions. Skills live in `/home/dev/.pi/agent/skills/` — a repo
-   mount, so anything there persists and is versioned.
-2. **A pi skill / config** → `/home/dev/.pi/agent/...` is a repo mount — just
-   create it there, it persists and is versioned.
+   and conventions. Skills live in the devcontainer repo's `.agents/skills/`,
+   mounted at `/home/dev/.agents/skills/` (pi) and `/home/dev/.claude/skills/`
+   (Claude Code, every session) — anything there persists and is versioned.
+2. **A pi config** → `/home/dev/.pi/agent/...` is a repo mount — just create
+   it there, it persists and is versioned.
 3. **A system package** → edit the devcontainer's Dockerfile and rebuild
    (`docker compose build`). Runtime apt is impossible (read-only rootfs).
 4. **Startup wiring** → edit the devcontainer's entrypoint script (runs as root
@@ -62,9 +65,7 @@ survive a container restart/rebuild.
 ## Available tooling (image-baked, always present)
 
 `tvly` (web search/fetch), `uv` (PEP 723 script runner), `gh`, `glab`, Node.js 24, `python3`, `nvim`
-(LazyVim), `lazygit`, `fd`, `rg`, `fzf`, `jq`, `tmux`, `git`, OpenJDK 21.
-
-## Validation
+(LazyVim), `lazygit`, `fd`, `rg`, `fzf`, `jq`, `tmux`, `git`, OpenJDK 21.## Validation
 
 Before claiming something persists, verify the mount source:
 `mount | grep -E "workspace|home/dev"`. A wrong persistence claim causes

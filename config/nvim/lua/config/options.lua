@@ -4,11 +4,11 @@
 
 vim.g.snacks_animate = false
 
--- Clipboard exchange with the host over SSH.
--- LazyVim disables the system clipboard when SSH_CONNECTION is set (its
--- default here would be ""). Re-enable it: nvim then uses its tmux clipboard
--- provider (`tmux load-buffer -w` / `refresh-client -l`), which exchanges
--- with the host clipboard via tmux (`set -g set-clipboard on`) and OSC 52 on
--- the Ghostty terminal. This file loads after LazyVim's own options, so the
--- value sticks (LazyVim captures it and restores it on VeryLazy).
+-- Clipboard exchange with the host. There is no SSH anymore (sessions are
+-- docker exec'd in from a host-side tmux pane, so SSH_CONNECTION is never set
+-- and LazyVim's SSH handling never kicks in). Keep unnamedplus so yank/paste
+-- reaches the host clipboard via OSC 52 relayed by host-side tmux
+-- (`set -g set-clipboard on`) on the Ghostty terminal. This file loads after
+-- LazyVim's own options, so the value sticks (LazyVim captures it and
+-- restores it on VeryLazy).
 vim.opt.clipboard = "unnamedplus"
