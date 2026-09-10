@@ -14,11 +14,14 @@ argument-hint: "[repos] [task-description]"
 
 ## Repo layout
 
-Repos live under `~/Development/baraka-services/<repo>` (main checkout, usually on
-`development`). All worktrees go in the shared sibling directory:
+Repos live under `$BARAKA_SERVICES_ROOT/<repo>` (main checkout, usually on
+`development`). `BARAKA_SERVICES_ROOT` defaults to `~/Development/baraka-services`; set it
+when the layout differs — in the devcontainer the repos sit in `/home/dev/workspace`, so run
+the script with `BARAKA_SERVICES_ROOT=/home/dev/workspace`. All worktrees go in the shared
+sibling directory:
 
 ```
-~/Development/baraka-services/worktrees/<repo>-<slug>
+$BARAKA_SERVICES_ROOT/worktrees/<repo>-<slug>
 ```
 
 Never nest a worktree inside another repo's checkout, and never create one in `/tmp`.
@@ -59,11 +62,12 @@ production. The script handles this with `--no-track`; the upstream gets set by
 Run the script — do not hand-write `git worktree add`:
 
 ```bash
-bash ~/.claude/skills/create-worktree/create-worktree.sh <type>/<slug> <repo> [repo...] [--base <base>]
+bash <this skill's directory>/create-worktree.sh <type>/<slug> <repo> [repo...] [--base <base>]
 ```
 
-It fetches the base, creates each worktree at
-`~/Development/baraka-services/worktrees/<repo>-<type>-<slug>` with no upstream, skips repos
+Its repos root is `$BARAKA_SERVICES_ROOT` (default `~/Development/baraka-services`) — export
+it before the call when the checkouts live elsewhere. It fetches the base, creates each
+worktree at `$BARAKA_SERVICES_ROOT/worktrees/<repo>-<type>-<slug>` with no upstream, skips repos
 where the branch or path already exists, and prints path / branch / base / commit / upstream
 per repo. Relay that output; only pass `--base` when the user names a base explicitly.
 
@@ -72,7 +76,7 @@ per repo. Relay that output; only pass `--base` when the user names a base expli
 To undo, remove the worktree before deleting the branch:
 
 ```bash
-cd ~/Development/baraka-services/<repo>
+cd "$BARAKA_SERVICES_ROOT"/<repo>
 git worktree remove ../worktrees/<dir>
 git branch -D <type>/<slug>
 ```

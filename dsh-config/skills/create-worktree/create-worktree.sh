@@ -4,15 +4,16 @@
 #   create-worktree.sh <branch> <repo> [repo...] [--base <base>]
 #
 #   branch   <type>/<slug>, e.g. fix/social-insurance-circuit-breaker
-#   repo     directory name under ~/Development/baraka-services
+#   repo     directory name under $BARAKA_SERVICES_ROOT
 #   --base   base branch, default: production (fetched from origin)
 #
-# Worktrees land in ~/Development/baraka-services/worktrees/<repo>-<type>-<slug>
-# and start with NO upstream, so git status/pull/push never point at the base.
+# Repos live in $BARAKA_SERVICES_ROOT (default ~/Development/baraka-services).
+# Worktrees land in $BARAKA_SERVICES_ROOT/worktrees/<repo>-<type>-<slug> and start
+# with NO upstream, so git status/pull/push never point at the base.
 
 set -euo pipefail
 
-ROOT="$HOME/Development/baraka-services"
+ROOT="${BARAKA_SERVICES_ROOT:-$HOME/Development/baraka-services}"
 BASE=production
 BRANCH=
 REPOS=()
@@ -25,7 +26,7 @@ while [[ $# -gt 0 ]]; do
       shift 2
       ;;
     -h|--help)
-      sed -n '2,13p' "$0" | cut -c3-
+      awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0"
       exit 0
       ;;
     -*)
@@ -50,6 +51,12 @@ if [[ ! $BRANCH =~ ^[a-z]+/[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
 fi
 
 DIR_SUFFIX=${BRANCH//\//-}
+
+if [[ ! -d $ROOT ]]; then
+  echo "repos root does not exist: $ROOT" >&2
+  echo "set BARAKA_SERVICES_ROOT to the directory holding the repo checkouts" >&2
+  exit 1
+fi
 
 for repo in "${REPOS[@]}"; do
   repo_path="$ROOT/$repo"

@@ -234,6 +234,10 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
   `${WORKSPACE}` dir; `/workspace` is kept as a symlink so old absolute paths
   still resolve). The service runs as the same `dev` UID as devbox, so agent
   writes into `/home/dev/workspace` and `dsh-config` keep host ownership.
+- `BARAKA_SERVICES_ROOT` is exported into both containers so the repo-mounted
+  `create-worktree` skill finds the checkouts where they actually are:
+  `/workspace` in devbox, `/home/dev/workspace` in dsh. Unset, the skill falls
+  back to its host layout default, `~/Development/baraka-services`.
 - DSH refuses non-loopback binds by design, so inside the container it listens
   on loopback and the entrypoint's socat relay bridges the published port —
   the host-facing publish remains `127.0.0.1` only (see `dsh/entrypoint.sh`).

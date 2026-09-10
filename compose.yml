@@ -36,6 +36,7 @@ services:
       - GLAB_CONFIG_DIR=/home/dev/.dsh/glab-cli   # glab state in the devbox-home volume; entrypoint auto-auths on boot
       - GIT_USER_NAME=${GIT_USER_NAME:-}
       - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
+      - BARAKA_SERVICES_ROOT=/workspace      # where the repo checkouts live, for the create-worktree skill
       - DOCKER_HOST=tcp://docker-dind:2375   # docker-dind sidecar (plain TCP, internal network only)
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
@@ -96,6 +97,7 @@ services:
     environment:
       - DSH_PERMISSION_MODE=${DSH_PERMISSION_MODE:-workspace-write}
       - DSH_TRUSTED_HOST=${DSH_TRUSTED_HOST:-}
+      - BARAKA_SERVICES_ROOT=/home/dev/workspace # where the repo checkouts live, for the create-worktree skill
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}   # provider key (default agent model)
       - REDMINE_URL=${REDMINE_URL:-}             # cordis Redmine MCP profile
       - REDMINE_API_KEY=${REDMINE_API_KEY:-}
