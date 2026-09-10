@@ -45,6 +45,17 @@ none: it stops agents from checking. Therefore promotion is human-only.
   are marked unverified or left out.
 - Small, focused files: summary line first, one topic = one file.
 
+## Ingesting binaries
+
+PDF/docx/xlsx → markdown before drafting: `markitdown <file>` — baked into the
+image with those extras, offline, no flags. Convert once; the `.md` is the
+artifact and the original stays where it is. Cite from the conversion — PDF
+pages are separated by a form feed (`\f`).
+
+Anything outside that bake — other formats (`.pptx`) or a newer release — goes
+through `uvx --from "markitdown[pptx]" markitdown <file>`. Plain `uvx markitdown`
+installs no extras and refuses pdf/docx/xlsx.
+
 ## Never
 
 - Promote any draft (yours or another's) to `verified`.

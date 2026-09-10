@@ -52,7 +52,7 @@ Focused files (≤ ~150 lines — split, don't bloat); headers name sections; ta
 
 ## Binaries (PDF/docx)
 
-Convert **once at ingestion**; the md is the artifact, originals stay on the host. `uvx markitdown` (default) or a one-off pandoc/OCR container via docker-dind. Idempotent `tools/ingest`, manifest in `.kb/`.
+Convert **once at ingestion**; the md is the artifact, originals stay on the host. `markitdown` (baked into the image with the pdf/docx/xlsx extras — offline, no flags), or a one-off pandoc/OCR container via docker-dind. Formats outside that bake — e.g. `.pptx` — need `uvx --from "markitdown[pptx]" markitdown <file>`; plain `uvx markitdown` installs no extras and refuses pdf/docx/xlsx. Idempotent `tools/ingest`, manifest in `.kb/`.
 
 ## Lifecycle
 

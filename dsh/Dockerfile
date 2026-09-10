@@ -49,6 +49,18 @@ RUN python3 -m venv /opt/uv \
     && ln -s /opt/uv/bin/uvx /usr/local/bin/uvx
 
 # ---------------------------------------------------------------------------
+# markitdown (Microsoft MarkItDown) — PDF/DOCX/XLSX -> Markdown so DSH agents
+# can extract text from inbox/docs/ artifacts during knowledge-base ingestion
+# (per docs/knowledge-base.md: `uvx markitdown` default). Baked venv in /opt
+# like the uv venv above — the rootfs is ephemeral and a runtime `uvx` fetch
+# would need network on every fresh box. The docx/xlsx/pdf converters are
+# optional extras; plain `markitdown` refuses those formats without them.
+# ---------------------------------------------------------------------------
+RUN python3 -m venv /opt/markitdown \
+    && /opt/markitdown/bin/pip install --no-cache-dir "markitdown[docx,xlsx,pdf]==0.1.7" \
+    && ln -s /opt/markitdown/bin/markitdown /usr/local/bin/markitdown
+
+# ---------------------------------------------------------------------------
 # glab (GitLab CLI) — deb package, pinned, TARGETARCH-aware (arm64/amd64)
 # ---------------------------------------------------------------------------
 ARG GLAB_VERSION=v1.116.0
