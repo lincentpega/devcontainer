@@ -44,7 +44,9 @@ mounts:                                 nvim + LazyVim + jdtls (via mason)
 - The **agent cannot reach anything that isn't mounted or loopback-bound** in
   the container: no photos, no docs, no private keys, no host loopback.
 - Secrets/state that belong in the box live in the `devbox-home` volume:
-  `~/.pi`, `~/.claude`, `~/.config/meridian`, nvim/mason state.
+  pi/claude auth + sessions, `~/.config/meridian`, nvim/mason state. Hand-edited
+  agent configs are repo-managed instead (`config/pi` → `~/.pi/agent`,
+  `config/claude` → `~/.claude`).
 
 ## Security envelope
 
@@ -236,8 +238,15 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
   writes into `/home/dev/workspace` and `dsh-config` keep host ownership.
 - `BARAKA_SERVICES_ROOT` is exported into both containers so the repo-mounted
   `create-worktree` skill finds the checkouts where they actually are:
-  `/workspace` in devbox, `/home/dev/workspace` in dsh. Unset, the skill falls
-  back to its host layout default, `~/Development/baraka-services`.
+  `/workspace` in devbox, `/home/dev/workspace` in dsh. The skill also detects
+  the root on its own (walking up from the cwd, then `$HOME/workspace`), so the
+  variable is an override rather than a requirement.
+- GitHub over HTTPS works from inside the box: with `GITHUB_TOKEN` in `.env`,
+  both entrypoints wire `credential.<GITHUB_HOST>.helper` so `git push` uses the
+  token instead of prompting — the agent can push without a host-side step
+  (`docker compose up -d` to re-run the entrypoint after adding the token). The
+  helper reads the env var at request time, so no token is written to
+  `~/.gitconfig`, and with no token set nothing changes for public clones.
 - DSH refuses non-loopback binds by design, so inside the container it listens
   on loopback and the entrypoint's socat relay bridges the published port —
   the host-facing publish remains `127.0.0.1` only (see `dsh/entrypoint.sh`).
@@ -253,7 +262,7 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
 ## First-boot checklist
 
 1. Enter the box: `docker compose exec -it -u dev devbox bash` (see above)
-2. `claude login` (OAuth — persists in the `devbox-home` volume)
+2. `claude login` (OAuth — persists in `config/claude/` in the repo, gitignored)
 3. `meridian` (binds 127.0.0.1:3456, container-local)
 4. add pi provider override (above)
 5. git: add your deploy keys to `~/.ssh` inside the box
@@ -265,7 +274,7 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
 | # | Decision | Value |
 |---|---|---|
 | D1 | tmux | host-side (A) — `docker compose exec` pane into the box; config repo-managed at `config/tmux/tmux.conf` (mounted `~/.tmux.conf` in-box, same file usable host-side) |
-| D2 | git access | dedicated deploy keys |
+| D2 | git access | dedicated deploy keys for GitLab; HTTPS token for GitHub (`GITHUB_TOKEN` → credential helper at boot) |
 | D3 | username | `dev` (UID 501 = host user) |
 | D4 | JDK | 21 LTS |
 | D5 | extras | gh CLI |
@@ -280,4 +289,5 @@ docker compose up -d --build dsh   # or plain `docker compose up -d --build`
 
 The recipe is the artifact: `docker compose up -d --build` reproduces the same
 environment on any machine with Docker (arm64). The image bakes the tools;
-your config + state live in the home volume. Ship configs in with a tar pipe.
+agent configs are repo-managed (`config/pi`, `config/claude`) and runtime state
+lives in the home volume. Ship configs in with a tar pipe.

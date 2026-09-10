@@ -28,7 +28,9 @@ fi
 
 # Boot provisioning from compose env (.env): git identity + glab (GitLab CLI)
 # auth. Runs on every boot: `git config --global` is idempotent, and `glab
-# auth login` is idempotent too, so it self-heals token rotation. glab state
+# auth login` is idempotent too, so it self-heals token rotation. The git
+# credential.helper for $GITLAB_HOST is pointed at glab so git push/pull over
+# HTTPS authenticates with glab's token instead of prompting. glab state
 # lands in $GLAB_CONFIG_DIR (= $HOME/.dsh/glab-cli, inside the ./dsh-config
 # bind mount) and stays out of version control via dsh-config/.gitignore.
 # Failures warn below and never abort the boot.
@@ -39,6 +41,27 @@ fi
 if [ -n "${GIT_USER_EMAIL:-}" ]; then
     git config --global user.email "${GIT_USER_EMAIL}" \
         || echo "[dsh] WARNING: git config user.email failed" >&2
+fi
+if [ -n "${GITLAB_HOST:-}" ]; then
+    cred_host="${GITLAB_HOST%/}"
+    git config --global "credential.${cred_host}.helper" '!glab auth git-credential' \
+        || echo "[dsh] WARNING: git credential.helper config failed" >&2
+fi
+
+# GitHub over HTTPS: answer git's credential request from $GITHUB_TOKEN so the
+# agent can push (e.g. lincentpega/devcontainer) without a host-side push. The
+# helper reads the env var at request time, so no token lands in ~/.gitconfig;
+# configured only when a token exists, which leaves public anonymous clones
+# working unchanged when it does not.
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+    gh_host="${GITHUB_HOST:-github.com}"
+    gh_host="${gh_host#https://}"
+    gh_host="${gh_host#http://}"
+    gh_host="${gh_host%/}"
+    git config --global "credential.${gh_host}.helper" \
+        '!f() { test "$1" = get && test -n "${GITHUB_TOKEN:-}" && printf "username=x-access-token\npassword=%s\n" "$GITHUB_TOKEN"; }; f' \
+        || echo "[dsh] WARNING: git github credential.helper config failed" >&2
+    echo "[dsh] git will authenticate ${gh_host} with GITHUB_TOKEN"
 fi
 if [ -n "${GITLAB_HOST:-}" ] && [ -n "${GITLAB_TOKEN:-}" ]; then
     glab_host="${GITLAB_HOST#https://}"
