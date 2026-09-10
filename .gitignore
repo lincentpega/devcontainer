@@ -7,6 +7,26 @@ config/pi/credentials.json
 config/pi/mcp-cache.json
 config/pi/mcp-onboarding.json
 config/pi/npm/
+# Claude Code config dir is repo-managed like pi; everything but the hand-edited
+# config (settings.json, CLAUDE.md, commands/, agents/) is machine state.
+config/claude/.credentials.json
+config/claude/.last-cleanup
+config/claude/.last-update-result.json
+config/claude/history.jsonl
+config/claude/policy-limits.json
+config/claude/remote-settings.json
+config/claude/backups/
+config/claude/cache/
+config/claude/debug/
+config/claude/ide/
+config/claude/plugins/
+config/claude/projects/
+config/claude/session-env/
+config/claude/sessions/
+config/claude/shell-snapshots/
+config/claude/skills/
+config/claude/statsig/
+config/claude/todos/
 # Archived skills are byte-identical to git history (HEAD) — redundant local copy
 config/pi/skills-archive/
 # Claude Code writes internal state (.system/) into skills dirs — keep it out of

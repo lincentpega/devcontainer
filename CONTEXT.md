@@ -36,6 +36,7 @@ mounts (all repo-relative, portable):
   ${WORKSPACE:-../}:/workspace:rw      (projects dir — repo's parent by default)
   ./config/nvim:/home/dev/.config/nvim:ro
   ./config/pi:/home/dev/.pi/agent:rw   (pi can self-improve; state gitignored)
+  ./config/claude:/home/dev/.claude:rw  (claude config; state gitignored; skills re-mounted below)
   ./.agents/skills:/home/dev/.agents/skills:rw   (canonical skill tree — pi global)
   ./.agents/skills:/home/dev/.claude/skills:rw   (same tree — claude user skills, every session/project)
   ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro   (mouse + extended keys for pi)
@@ -136,4 +137,4 @@ git push/pull on HOST         # review loop — the box proposes, host publishes
 
 tmux host-side (config repo-managed at config/tmux/, mounted ~/.tmux.conf) · deploy keys (no ~/.ssh mount) · user `dev` (UID 501) ·
 JDK 21 · Node 24 · meridian container-local → now own service · workspace =
-repo parent · configs repo-managed · skills canonical in `.agents/skills/` (pi + claude mounted `~/.agents/skills` / `~/.claude/skills`; repo `.claude/skills` symlink) · secrets .env-only · gitleaks containerized
+repo parent · configs repo-managed (pi, claude, nvim, tmux) · skills canonical in `.agents/skills/` (pi + claude mounted `~/.agents/skills` / `~/.claude/skills`; repo `.claude/skills` symlink) · secrets .env-only · gitleaks containerized

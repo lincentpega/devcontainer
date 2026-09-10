@@ -23,19 +23,23 @@ services:
       - ${WORKSPACE:-../}:/workspace:rw              # projects dir (repo's parent by default; override in .env)
       - ./config/nvim:/home/dev/.config/nvim:rw      # LazyVim config (repo) — rw so :Lazy update writes lazy-lock.json into the repo
       - ./config/pi:/home/dev/.pi/agent:rw          # pi config dir (repo) — pi can self-improve
+      - ./config/claude:/home/dev/.claude:rw        # Claude Code config dir (repo) — runtime state gitignored; skills re-mounted below
       - ./.agents/skills:/home/dev/.agents/skills:rw  # canonical skill tree (repo) — pi global ~/.agents/skills
       - ./.agents/skills:/home/dev/.claude/skills:rw  # same tree — Claude Code user skills, available in every session/project
       - ./config/tmux/tmux.conf:/home/dev/.tmux.conf:ro  # tmux config (repo) — mouse + extended keys for pi
-      - devbox-home:/home/dev                        # state: auth, sessions, mason, meridian, claude
+      - devbox-home:/home/dev                        # state: sessions, mason, meridian, ~/.claude.json
     environment:
       - COLORTERM=truecolor
       - TAVILY_API_KEY=${TAVILY_API_KEY:-}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GITHUB_HOST=${GITHUB_HOST:-github.com}    # host the GitHub token authenticates; entrypoint wires the cred helper
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}            # PAT (classic: repo; fine-grained: Contents r/w) — enables git push
       - GLAB_CONFIG_DIR=/home/dev/.dsh/glab-cli   # glab state in the devbox-home volume; entrypoint auto-auths on boot
       - GIT_USER_NAME=${GIT_USER_NAME:-}
       - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
+      - BARAKA_SERVICES_ROOT=/workspace      # where the repo checkouts live, for the create-worktree skill
       - DOCKER_HOST=tcp://docker-dind:2375   # docker-dind sidecar (plain TCP, internal network only)
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
@@ -96,11 +100,14 @@ services:
     environment:
       - DSH_PERMISSION_MODE=${DSH_PERMISSION_MODE:-workspace-write}
       - DSH_TRUSTED_HOST=${DSH_TRUSTED_HOST:-}
+      - BARAKA_SERVICES_ROOT=/home/dev/workspace # where the repo checkouts live, for the create-worktree skill
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}   # provider key (default agent model)
       - REDMINE_URL=${REDMINE_URL:-}             # cordis Redmine MCP profile
       - REDMINE_API_KEY=${REDMINE_API_KEY:-}
       - GITLAB_HOST=${GITLAB_HOST:-}
       - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GITHUB_HOST=${GITHUB_HOST:-github.com}   # host the GitHub token authenticates; entrypoint wires the cred helper
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}           # PAT — lets the agent push (e.g. lincentpega/devcontainer over HTTPS)
       - GIT_USER_NAME=${GIT_USER_NAME:-}
       - GIT_USER_EMAIL=${GIT_USER_EMAIL:-}
     mem_limit: ${DSH_MEM_LIMIT:-4g}

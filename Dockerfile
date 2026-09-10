@@ -58,6 +58,11 @@ RUN ARCH=$([ "${TARGETARCH}" = "arm64" ] && echo arm64 || echo x86_64) \
 RUN npm install -g --ignore-scripts @earendil-works/pi-coding-agent@0.85.1
 RUN npm install -g @anthropic-ai/claude-code @rynfar/meridian
 
+# OpenAI Codex CLI (official npm package; native binary arrives via the
+# @openai/codex-linux-* optionalDependency, so no extra postinstall step).
+# Auth/config live in ~/.codex on the devbox-home volume.
+RUN npm install -g --no-audit --no-fund @openai/codex@0.153.4
+
 # ---------------------------------------------------------------------------
 # Official Tavily CLI (tvly) — live web search for the agent
 # ---------------------------------------------------------------------------
@@ -80,6 +85,17 @@ RUN python3 -m venv /opt/tavily \
 RUN python3 -m venv /opt/uv \
     && /opt/uv/bin/pip install --no-cache-dir uv \
     && ln -s /opt/uv/bin/uv /usr/local/bin/uv
+
+# ---------------------------------------------------------------------------
+# markitdown (Microsoft MarkItDown) — PDF/DOCX/XLSX -> Markdown for the
+# knowledge-base ingestion workflow. Baked venv in /opt like tavily/uv above
+# (rootfs is read-only at runtime; a runtime `uvx` fetch would need network
+# and would be lost on `down -v`). The docx/xlsx/pdf converters are optional
+# extras: plain `markitdown` refuses those formats without them.
+# ---------------------------------------------------------------------------
+RUN python3 -m venv /opt/markitdown \
+    && /opt/markitdown/bin/pip install --no-cache-dir "markitdown[docx,xlsx,pdf]==0.1.7" \
+    && ln -s /opt/markitdown/bin/markitdown /usr/local/bin/markitdown
 
 # ---------------------------------------------------------------------------
 # glab (GitLab CLI) — deb package, pinned; TARGETARCH-aware (arm64/amd64)

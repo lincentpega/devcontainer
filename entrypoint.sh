@@ -21,8 +21,11 @@ find "/home/${USERNAME}" -maxdepth 1 -mindepth 1 \
     -exec chown "${USERNAME}:${USERNAME}" {} + 2>/dev/null || true
 
 # Boot provisioning for the dev user from compose env (.env):
-#   * git identity -> git config --global (persists in the devbox-home volume)
-#   * glab auth    -> idempotent login each boot (self-heals token rotation)
+#   * git identity   -> git config --global (persists in the devbox-home volume)
+#   * glab auth      -> idempotent login each boot (self-heals token rotation)
+#   * git cred helper -> git push/pull over HTTPS on $GITLAB_HOST uses glab's
+#                        token, and on $GITHUB_HOST the $GITHUB_TOKEN, instead of
+#                        prompting (credential.helper per host)
 # Runs as root, applies as `dev`; failures warn but never abort container boot.
 if command -v runuser >/dev/null 2>&1; then
     if [ -n "${GIT_USER_NAME:-}" ]; then
@@ -32,6 +35,27 @@ if command -v runuser >/dev/null 2>&1; then
     if [ -n "${GIT_USER_EMAIL:-}" ]; then
         runuser -u dev -- env HOME=/home/dev git config --global user.email "${GIT_USER_EMAIL}" \
             || echo "[devbox] WARNING: git config user.email failed" >&2
+    fi
+    if [ -n "${GITLAB_HOST:-}" ]; then
+        cred_host="${GITLAB_HOST%/}"
+        runuser -u dev -- env HOME=/home/dev git config --global \
+            "credential.${cred_host}.helper" '!glab auth git-credential' \
+            || echo "[devbox] WARNING: git credential.helper config failed" >&2
+    fi
+    # GitHub over HTTPS: answer git's credential request from $GITHUB_TOKEN. The
+    # helper reads the env var at request time, so no token is written to
+    # ~/.gitconfig; configured only when a token exists, which leaves public
+    # anonymous clones working unchanged when it does not.
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        gh_host="${GITHUB_HOST:-github.com}"
+        gh_host="${gh_host#https://}"
+        gh_host="${gh_host#http://}"
+        gh_host="${gh_host%/}"
+        runuser -u dev -- env HOME=/home/dev git config --global \
+            "credential.${gh_host}.helper" \
+            '!f() { test "$1" = get && test -n "${GITHUB_TOKEN:-}" && printf "username=x-access-token\npassword=%s\n" "$GITHUB_TOKEN"; }; f' \
+            || echo "[devbox] WARNING: git github credential.helper config failed" >&2
+        echo "[devbox] git will authenticate ${gh_host} with GITHUB_TOKEN"
     fi
     if [ -n "${GITLAB_HOST:-}" ] && [ -n "${GITLAB_TOKEN:-}" ]; then
         glab_host="${GITLAB_HOST#https://}"
